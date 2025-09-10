@@ -1,0 +1,13 @@
+# Arquivos do Python/Django que NÃO queremos subir
+*.pyc
+__pycache__/
+db.sqlite3
+venv/
+
+# Arquivos de configuração pessoal
+.vscode/
+.idea/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
