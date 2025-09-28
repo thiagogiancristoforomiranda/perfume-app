@@ -42,11 +42,11 @@ class CartDetail(generics.RetrieveUpdateAPIView):
         cart, created = Cart.objects.get_or_create(user=self.request.user)
         return cart
     
-class PerfumeDetail(generics.RetrieveAPIView):
-    permission_classes = [permissions.AllowAny]
+class PerfumeDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Perfume.objects.all()
     serializer_class = PerfumeSerializer
-
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def add_to_cart(request):
@@ -68,25 +68,39 @@ def add_to_cart(request):
     
     return Response({'message': 'Item added to cart'}, status=status.HTTP_200_OK)
 
+# ... seu código anterior até a linha 78 ...
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def checkout(request):
     cart = Cart.objects.get(user=request.user)
     items = cart.items.all()
-    
+
     if not items:
         return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
     
+    # --- NOVO TRECHO DE VALIDAÇÃO ---
+    shipping_address = request.data.get('shipping_address')
+    payment_method = request.data.get('payment_method')
+
+    if not shipping_address or not payment_method:
+        return Response(
+            {'error': 'shipping_address e payment_method são obrigatórios.'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    # --- FIM DO NOVO TRECHO ---
+
     total_amount = sum(item.perfume.price * item.quantity for item in items)
+
     order = Order.objects.create(
         user=request.user,
         total_amount=total_amount,
-        shipping_address=request.data.get('shipping_address'),
-        payment_method=request.data.get('payment_method')
+        shipping_address=shipping_address,  # Usa a variável que pegamos
+        payment_method=payment_method      # Usa a variável que pegamos
     )
     order.items.set(items)
-    
+
     # Clear the cart
     cart.items.all().delete()
-    
+
     return Response({'message': 'Order created successfully', 'order_id': order.id}, status=status.HTTP_201_CREATED)
