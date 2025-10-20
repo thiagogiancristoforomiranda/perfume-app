@@ -1,26 +1,48 @@
 // app/(tabs)/_layout.tsx
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { FontAwesome } from '@expo/vector-icons'; // Biblioteca de ícones
+import { FontAwesome } from '@expo/vector-icons';
+
+const PRETO_FUNDO = '#121212';
+const DOURADO_ATIVO = '#FFD700';
+const CINZA_INATIVO = '#8e8e93';
 
 export default function TabLayout() {
   return (
-    // Aqui podemos configurar a cor do ícone e texto da aba ativa
-    <Tabs screenOptions={{ tabBarActiveTintColor: '#007BFF' }}>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: DOURADO_ATIVO,
+        tabBarInactiveTintColor: CINZA_INATIVO,
+        tabBarStyle: {
+          backgroundColor: PRETO_FUNDO,
+          borderTopWidth: 0,
+        },
+        headerShown: false,
+      }}
+    >
       <Tabs.Screen
-        name="index" // Aponta para o arquivo index.tsx (Catálogo)
+        name="index" // Catálogo
         options={{
-          title: 'Catálogo', // O texto que aparece na aba
+          title: 'Catálogo',
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="cart" // CORREÇÃO: Aponta para o arquivo cart.tsx
+        name="cart" // Carrinho
         options={{
-          title: 'Carrinho', // CORREÇÃO: O texto correto da aba
+          title: 'Carrinho',
           tabBarIcon: ({ color }) => <FontAwesome size={28} name="shopping-cart" color={color} />,
         }}
       />
+      {/* ===== NOVA ABA ADICIONADA AQUI ===== */}
+      <Tabs.Screen
+        name="profile" // Aponta para profile.tsx
+        options={{
+          title: 'Perfil', // Texto da aba
+          tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />, // Ícone de usuário
+        }}
+      />
+      {/* ==================================== */}
     </Tabs>
   );
 }

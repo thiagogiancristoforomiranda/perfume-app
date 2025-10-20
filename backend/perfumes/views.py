@@ -29,6 +29,21 @@ def user_login(request):
         return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
+# 👇 ADICIONE ESTA VIEW PARA PEGAR OS DADOS DO USUÁRIO LOGADO
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def user_profile(request):
+    """
+    Retorna os dados do usuário logado
+    """
+    user = request.user
+    return Response({
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'name': f"{user.first_name} {user.last_name}".strip() or user.username
+    })
+
 class PerfumeList(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     queryset = Perfume.objects.all()
@@ -67,8 +82,6 @@ def add_to_cart(request):
     cart_item.save()
     
     return Response({'message': 'Item added to cart'}, status=status.HTTP_200_OK)
-
-# ... seu código anterior até a linha 78 ...
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])

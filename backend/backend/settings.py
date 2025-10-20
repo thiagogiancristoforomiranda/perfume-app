@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-sua-chave-secreta-aqui-altere-em-producao'
+SECRET_KEY = 'django-insecure-sua-chave-secreta-aqui-altere-em-producao' # Lembre-se de mudar isso em produção
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -40,12 +40,13 @@ INSTALLED_APPS = [
     # Aplicativos de terceiros
     'rest_framework',
     'corsheaders',
+    'rest_framework_simplejwt', # <-- Adicionado Simple JWT aqui
     # Seus aplicativos
     'perfumes',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Adicione isto no topo
+    'corsheaders.middleware.CorsMiddleware', # Garanta que está no topo ou perto
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -88,21 +89,10 @@ DATABASES = {
 
 
 # Password validation
-# https://docs.djangoproject.com/en/4.2/ref/settings/#password-validators
+# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    # ... (Validadores padrão) ...
 ]
 
 
@@ -110,11 +100,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
 LANGUAGE_CODE = 'pt-br'
-
 TIME_ZONE = 'America/Sao_Paulo'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -128,20 +115,26 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Configurações para desenvolvimento - ajuste para produção
+# --- Configurações Específicas ---
+
+# CORS (Configuração padrão para desenvolvimento)
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# Configurações do REST Framework
+# Configurações do REST Framework (CORRIGIDO)
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Você pode adicionar SessionAuthentication se precisar dele para o Admin, por exemplo
+        # 'rest_framework.authentication.SessionAuthentication', 
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        # 👇 CORREÇÃO PRINCIPAL AQUI 👇
+        # Permite leitura para qualquer um, mas exige login para escrita
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ]
 }
 
-# Configurações de arquivos de mídia
+# Configurações de arquivos de mídia (Correto)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

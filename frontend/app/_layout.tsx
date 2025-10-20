@@ -1,26 +1,64 @@
 // app/_layout.tsx
 import { Stack } from 'expo-router';
-import { AuthProvider } from '../src/context/AuthContext'; // Importe nosso AuthProvider
+import { AuthProvider } from '../src/context/AuthContext';
+// --- NOVAS IMPORTAÇÕES ---
+import { useFonts, Poppins_400Regular, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+// -------------------------
 
-// Este é o layout principal do aplicativo.
-// A lógica de fontes e splash screen pode ser adicionada aqui depois se necessário.
+// Impede a splash screen de esconder antes das fontes carregarem
+SplashScreen.preventAutoHideAsync(); 
+
+// ===== CORES DO TEMA PARA O CABEÇALHO =====
+const CORES = {
+  fundo: '#121212',
+  textoPrincipal: '#FFFFFF',
+};
+// ===========================================
+
 export default function RootLayout() {
-  
-  // Adicionando um log para ter certeza que este arquivo está rodando.
-  console.log("--- O ARQUIVO _layout.tsx FOI EXECUTADO ---"); 
+  // --- CARREGAMENTO DAS FONTES ---
+  const [fontsLoaded, fontError] = useFonts({
+    Poppins_400Regular,
+    Poppins_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync(); // Esconde a splash screen quando pronto
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null; // Não renderiza nada até a fonte carregar (ou dar erro)
+  }
+  // -----------------------------
 
   return (
-    // O AuthProvider deve envolver toda a navegação para que o
-    // estado de login esteja disponível em todas as telas.
     <AuthProvider>
-      <Stack>
-        {/* A rota principal são as abas (tabs), que não mostram um cabeçalho aqui */}
+      {/* Aplicando um estilo padrão para todos os cabeçalhos */}
+      <Stack screenOptions={{
+        headerStyle: { backgroundColor: CORES.fundo },
+        headerTintColor: CORES.textoPrincipal,
+        headerTitleStyle: { color: CORES.textoPrincipal },
+      }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         
-        {/* Rota para a tela de login */}
-        <Stack.Screen name="login" options={{ title: 'Faça seu Login' }} />
+        <Stack.Screen 
+          name="login" 
+          options={{ title: 'Faça seu Login' }} 
+        />
+
+        {/* ===== ROTA DE REGISTER ADICIONADA E ESTILIZADA AQUI ===== */}
+        <Stack.Screen 
+          name="register" 
+          options={{ 
+            title: 'Faça o seu registro' 
+          }} 
+        />
+        {/* ======================================================== */}
         
-        {/* Rota para a tela modal que já existia */}
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </AuthProvider>
