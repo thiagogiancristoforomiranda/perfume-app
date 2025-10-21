@@ -23,10 +23,10 @@ class CartItem(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('processing', 'Processing'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
+        ('pending', 'Pendente'),
+        ('processing', 'Processando'),
+        ('completed', 'Concluído'),
+        ('cancelled', 'Cancelado'),
     )
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -36,3 +36,17 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     shipping_address = models.TextField()
     payment_method = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"Pedido #{self.id} - {self.user.username}"
+
+class Favorite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    perfume = models.ForeignKey(Perfume, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'perfume']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.perfume.name}"

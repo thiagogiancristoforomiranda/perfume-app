@@ -1,8 +1,11 @@
-import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, ScrollView, Alert, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, ScrollView, Alert, StatusBar, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
+import api from '../../src/services/api';
+
+const { width } = Dimensions.get('window');
 
 // Paleta de cores sofisticada
 const CORES = {
@@ -20,9 +23,264 @@ const CORES = {
   botaoTexto: '#000000',
 };
 
+// Tipagens
+interface Order {
+  id: number;
+  total_amount: string;
+  status: string;
+  created_at: string;
+  items_count: number;
+}
+
+interface Perfume {
+  id: number;
+  name: string;
+  brand: string;
+  price: string;
+  image: string;
+}
+
+interface Favorite {
+  id: number;
+  perfume: Perfume;
+}
+
+// Componente de Item do Menu (AGORA DEFINIDO FORA DO COMPONENTE PRINCIPAL)
+const MenuItem = ({ icon, title, subtitle, onPress, isLast = false }: any) => (
+  <Pressable 
+    style={[styles.menuItem, isLast && styles.menuItemLast]} 
+    onPress={onPress}
+  >
+    <View style={styles.menuItemLeft}>
+      <View style={styles.menuIconContainer}>
+        {icon}
+      </View>
+      <View style={styles.menuTextContainer}>
+        <Text style={styles.menuTitle}>{title}</Text>
+        {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+      </View>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color={CORES.textoSecundario} />
+  </Pressable>
+);
+
+// Componente da Aba Perfil
+const PerfilTab = ({ user, ordersCount, favoritesCount, onSignOut }: any) => (
+  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
+    {/* Estatísticas */}
+    <View style={styles.statsContainer}>
+      <View style={styles.statItem}>
+        <Text style={styles.statNumber}>{ordersCount}</Text>
+        <Text style={styles.statLabel}>Pedidos</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={styles.statNumber}>{favoritesCount}</Text>
+        <Text style={styles.statLabel}>Favoritos</Text>
+      </View>
+    </View>
+
+    {/* Menu de Opções */}
+    <View style={styles.menuSection}>
+      <Text style={styles.sectionTitle}>Minha Conta</Text>
+      
+      <MenuItem
+        icon={<Ionicons name="person-outline" size={22} color={CORES.dourado} />}
+        title="Meus Dados"
+        subtitle="Gerencie suas informações"
+      />
+      
+      <MenuItem
+        icon={<Ionicons name="location-outline" size={22} color={CORES.dourado} />}
+        title="Endereços"
+        subtitle="Gerencie seus endereços"
+      />
+    </View>
+
+    {/* Mais Opções */}
+    <View style={styles.menuSection}>
+      <Text style={styles.sectionTitle}>Mais</Text>
+      
+      <MenuItem
+        icon={<Ionicons name="help-circle-outline" size={22} color={CORES.dourado} />}
+        title="Ajuda & Suporte"
+        subtitle="Central de ajuda"
+        isLast={true}
+      />
+    </View>
+
+    {/* Botão de Sair */}
+    <Pressable 
+      style={styles.signOutButton}
+      onPress={onSignOut}
+    >
+      <Ionicons name="log-out-outline" size={20} color={CORES.erro} />
+      <Text style={styles.signOutText}>SAIR DA CONTA</Text>
+    </Pressable>
+
+    {/* Versão do App */}
+    <View style={styles.versionContainer}>
+      <Text style={styles.versionText}>Perfumaria Ledo</Text>
+      <Text style={styles.versionText}>Versão 1.0.0</Text>
+    </View>
+  </ScrollView>
+);
+
+// Componente da Aba Pedidos
+const PedidosTab = ({ orders }: any) => (
+  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
+    {orders.length === 0 ? (
+      <View style={styles.emptyState}>
+        <Ionicons name="cube-outline" size={64} color={CORES.dourado} />
+        <Text style={styles.emptyStateTitle}>Nenhum pedido encontrado</Text>
+        <Text style={styles.emptyStateText}>Suas compras aparecerão aqui</Text>
+      </View>
+    ) : (
+      orders.map((order: Order) => (
+        <View key={order.id} style={styles.orderItem}>
+          <View style={styles.orderHeader}>
+            <Text style={styles.orderId}>Pedido #{order.id}</Text>
+            <Text style={[
+              styles.orderStatus,
+              order.status === 'completed' && styles.orderStatusCompleted,
+              order.status === 'pending' && styles.orderStatusPending
+            ]}>
+              {order.status === 'completed' ? 'Entregue' : 
+               order.status === 'pending' ? 'Pendente' : 
+               order.status === 'processing' ? 'Processando' : 'Cancelado'}
+            </Text>
+          </View>
+          <Text style={styles.orderDate}>
+            {new Date(order.created_at).toLocaleDateString('pt-BR')}
+          </Text>
+          <Text style={styles.orderAmount}>
+            R$ {parseFloat(order.total_amount).toFixed(2)}
+          </Text>
+          <Text style={styles.orderItems}>
+            {order.items_count} {order.items_count === 1 ? 'item' : 'itens'}
+          </Text>
+        </View>
+      ))
+    )}
+  </ScrollView>
+);
+
+// Componente da Aba Favoritos
+const FavoritosTab = ({ favorites, router }: any) => (
+  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
+    {favorites.length === 0 ? (
+      <View style={styles.emptyState}>
+        <Ionicons name="heart-outline" size={64} color={CORES.dourado} />
+        <Text style={styles.emptyStateTitle}>Nenhum favorito</Text>
+        <Text style={styles.emptyStateText}>Seus perfumes favoritos aparecerão aqui</Text>
+      </View>
+    ) : (
+      favorites.map((favorite: Favorite) => (
+        <Pressable 
+          key={favorite.id} 
+          style={styles.favoriteItem}
+          onPress={() => router.push(`/perfumes/${favorite.perfume.id}`)}
+        >
+          <Image 
+            source={{ uri: favorite.perfume.image?.replace('127.0.0.1', '192.168.0.101') }}
+            style={styles.favoriteImage}
+          />
+          <View style={styles.favoriteDetails}>
+            <Text style={styles.favoriteName}>{favorite.perfume.name}</Text>
+            <Text style={styles.favoriteBrand}>{favorite.perfume.brand}</Text>
+            <Text style={styles.favoritePrice}>R$ {favorite.perfume.price}</Text>
+          </View>
+          <Ionicons name="heart" size={24} color={CORES.erro} />
+        </Pressable>
+      ))
+    )}
+  </ScrollView>
+);
+
+// Componente da Aba Carrinho
+const CarrinhoTab = ({ cartItemsCount, router }: any) => (
+  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
+    {cartItemsCount === 0 ? (
+      <View style={styles.emptyState}>
+        <Ionicons name="cart-outline" size={64} color={CORES.dourado} />
+        <Text style={styles.emptyStateTitle}>Carrinho vazio</Text>
+        <Text style={styles.emptyStateText}>Adicione produtos ao seu carrinho</Text>
+        <Pressable 
+          style={styles.continueShoppingButton}
+          onPress={() => router.push('/')}
+        >
+          <Text style={styles.continueShoppingText}>Continuar Comprando</Text>
+        </Pressable>
+      </View>
+    ) : (
+      <View style={styles.cartSummary}>
+        <Text style={styles.cartSummaryTitle}>Seu carrinho tem {cartItemsCount} {cartItemsCount === 1 ? 'item' : 'itens'}</Text>
+        <Pressable 
+          style={styles.viewCartButton}
+          onPress={() => router.push('/cart')}
+        >
+          <Text style={styles.viewCartButtonText}>VER CARRINHO</Text>
+        </Pressable>
+      </View>
+    )}
+  </ScrollView>
+);
+
 export default function ProfileScreen() {
-  const { signed, user, signOut, token } = useAuth();
+  const { signed, user, signOut } = useAuth();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('perfil');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Buscar dados do usuário
+  useEffect(() => {
+    if (signed) {
+      fetchUserData();
+    } else {
+      setLoading(false);
+    }
+  }, [signed]);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar pedidos
+      try {
+        const ordersResponse = await api.get('/orders/');
+        setOrders(ordersResponse.data);
+      } catch (error) {
+        console.error('Erro ao buscar pedidos:', error);
+        setOrders([]);
+      }
+
+      // Buscar favoritos
+      try {
+        const favoritesResponse = await api.get('/favorites/');
+        setFavorites(favoritesResponse.data);
+      } catch (error) {
+        console.error('Erro ao buscar favoritos:', error);
+        setFavorites([]);
+      }
+
+      // Buscar carrinho
+      try {
+        const cartResponse = await api.get('/cart/');
+        setCartItemsCount(cartResponse.data.total_items || 0);
+      } catch (error) {
+        console.error('Erro ao buscar carrinho:', error);
+        setCartItemsCount(0);
+      }
+
+    } catch (error) {
+      console.error('Erro geral ao buscar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLoginPress = () => {
     router.push('/login');
@@ -58,23 +316,49 @@ export default function ProfileScreen() {
     return letter;
   };
 
-  const MenuItem = ({ icon, title, subtitle, onPress, isLast = false }: any) => (
+  // Componente de Aba
+  const TabButton = ({ tabName, icon, label, count }: any) => (
     <Pressable 
-      style={[styles.menuItem, isLast && styles.menuItemLast]} 
-      onPress={onPress}
+      style={[
+        styles.tabButton,
+        activeTab === tabName && styles.tabButtonActive
+      ]}
+      onPress={() => setActiveTab(tabName)}
     >
-      <View style={styles.menuItemLeft}>
-        <View style={styles.menuIconContainer}>
-          {icon}
+      <Ionicons 
+        name={icon} 
+        size={20} 
+        color={activeTab === tabName ? CORES.dourado : CORES.textoSecundario} 
+      />
+      <Text style={[
+        styles.tabLabel,
+        activeTab === tabName && styles.tabLabelActive
+      ]}>
+        {label}
+      </Text>
+      {count > 0 && (
+        <View style={styles.tabBadge}>
+          <Text style={styles.tabBadgeText}>{count}</Text>
         </View>
-        <View style={styles.menuTextContainer}>
-          <Text style={styles.menuTitle}>{title}</Text>
-          {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={CORES.textoSecundario} />
+      )}
     </Pressable>
   );
+
+  // Conteúdo das Abas
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'perfil':
+        return <PerfilTab user={user} ordersCount={orders.length} favoritesCount={favorites.length} onSignOut={handleSignOut} />;
+      case 'pedidos':
+        return <PedidosTab orders={orders} />;
+      case 'favoritos':
+        return <FavoritosTab favorites={favorites} router={router} />;
+      case 'carrinho':
+        return <CarrinhoTab cartItemsCount={cartItemsCount} router={router} />;
+      default:
+        return <PerfilTab user={user} ordersCount={orders.length} favoritesCount={favorites.length} onSignOut={handleSignOut} />;
+    }
+  };
 
   if (!signed) {
     return (
@@ -131,97 +415,58 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header do Perfil */}
-        <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {getAvatarLetter()}
-              </Text>
-            </View>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={20} color={CORES.dourado} />
-            </View>
+      {/* Header do Perfil */}
+      <View style={styles.header}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {getAvatarLetter()}
+            </Text>
           </View>
-          
-          <Text style={styles.userName}>{getDisplayName()}</Text>
-          
-          <View style={styles.memberSince}>
-            <Ionicons name="calendar-outline" size={14} color={CORES.textoSecundario} />
-            <Text style={styles.memberSinceText}>Membro desde 2024</Text>
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark-circle" size={20} color={CORES.dourado} />
           </View>
         </View>
-
-        {/* Estatísticas */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Pedidos</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Favoritos</Text>
-          </View>
+        
+        <Text style={styles.userName}>{getDisplayName()}</Text>
+        
+        <View style={styles.memberSince}>
+          <Ionicons name="calendar-outline" size={14} color={CORES.textoSecundario} />
+          <Text style={styles.memberSinceText}>Membro desde 2024</Text>
         </View>
+      </View>
 
-        {/* Menu de Opções */}
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Minha Conta</Text>
-          
-          <MenuItem
-            icon={<Ionicons name="person-outline" size={22} color={CORES.dourado} />}
-            title="Meus Dados"
-            subtitle="Gerencie suas informações"
-          />
-          
-          <MenuItem
-            icon={<Ionicons name="cube-outline" size={22} color={CORES.dourado} />}
-            title="Meus Pedidos"
-            subtitle="Acompanhe suas compras"
-          />
-          
-          <MenuItem
-            icon={<Ionicons name="heart-outline" size={22} color={CORES.dourado} />}
-            title="Favoritos"
-            subtitle="Seus perfumes preferidos"
-          />
-          
-          <MenuItem
-            icon={<Ionicons name="location-outline" size={22} color={CORES.dourado} />}
-            title="Endereços"
-            subtitle="Gerencie seus endereços"
-          />
-        </View>
+      {/* Navegação por Abas */}
+      <View style={styles.tabContainer}>
+        <TabButton 
+          tabName="perfil" 
+          icon="person" 
+          label="Perfil" 
+        />
+        <TabButton 
+          tabName="pedidos" 
+          icon="cube" 
+          label="Pedidos" 
+          count={orders.length}
+        />
+        <TabButton 
+          tabName="favoritos" 
+          icon="heart" 
+          label="Favoritos" 
+          count={favorites.length}
+        />
+        <TabButton 
+          tabName="carrinho" 
+          icon="cart" 
+          label="Carrinho" 
+          count={cartItemsCount}
+        />
+      </View>
 
-        {/* Mais Opções */}
-        <View style={styles.menuSection}>
-          <Text style={styles.sectionTitle}>Mais</Text>
-          
-          <MenuItem
-            icon={<Ionicons name="help-circle-outline" size={22} color={CORES.dourado} />}
-            title="Ajuda & Suporte"
-            subtitle="Central de ajuda"
-            isLast={true}
-          />
-        </View>
-
-        {/* Botão de Sair */}
-        <Pressable 
-          style={styles.signOutButton}
-          onPress={handleSignOut}
-        >
-          <Ionicons name="log-out-outline" size={20} color={CORES.erro} />
-          <Text style={styles.signOutText}>SAIR DA CONTA</Text>
-        </Pressable>
-
-        {/* Versão do App */}
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>Perfumaria Ledo</Text>
-          <Text style={styles.versionText}>Versão 1.0.0</Text>
-        </View>
-      </ScrollView>
+      {/* Conteúdo da Aba Selecionada */}
+      <View style={styles.tabContent}>
+        {renderTabContent()}
+      </View>
     </SafeAreaView>
   );
 }
@@ -351,6 +596,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: CORES.textoSecundario,
   },
+  // Navegação por Abas
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: CORES.fundoCard,
+    borderBottomWidth: 1,
+    borderBottomColor: CORES.borda,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    position: 'relative',
+  },
+  tabButtonActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: CORES.dourado,
+  },
+  tabLabel: {
+    fontSize: 12,
+    color: CORES.textoSecundario,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  tabLabelActive: {
+    color: CORES.dourado,
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 20,
+    backgroundColor: CORES.dourado,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabBadgeText: {
+    color: CORES.fundo,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  tabContent: {
+    flex: 1,
+  },
+  tabScrollView: {
+    flex: 1,
+  },
+  // Estatísticas
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: CORES.card,
@@ -380,6 +674,7 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: CORES.borda,
   },
+  // Menu
   menuSection: {
     backgroundColor: CORES.card,
     marginHorizontal: 20,
@@ -424,6 +719,155 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: CORES.textoSecundario,
   },
+  // Estados Vazios
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: CORES.textoPrincipal,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: CORES.textoSecundario,
+    textAlign: 'center',
+  },
+  // Pedidos
+  orderItem: {
+    backgroundColor: CORES.card,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  orderId: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: CORES.textoPrincipal,
+  },
+  orderStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    color: CORES.dourado,
+  },
+  orderStatusCompleted: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    color: CORES.sucesso,
+  },
+  orderStatusPending: {
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+    color: '#FFC107',
+  },
+  orderDate: {
+    fontSize: 14,
+    color: CORES.textoSecundario,
+    marginBottom: 4,
+  },
+  orderAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: CORES.dourado,
+    marginBottom: 4,
+  },
+  orderItems: {
+    fontSize: 12,
+    color: CORES.textoSecundario,
+  },
+  // Favoritos
+  favoriteItem: {
+    backgroundColor: CORES.card,
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favoriteImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  favoriteDetails: {
+    flex: 1,
+  },
+  favoriteName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: CORES.textoPrincipal,
+    marginBottom: 2,
+  },
+  favoriteBrand: {
+    fontSize: 12,
+    color: CORES.textoSecundario,
+    marginBottom: 4,
+  },
+  favoritePrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CORES.dourado,
+  },
+  // Carrinho
+  cartSummary: {
+    backgroundColor: CORES.card,
+    margin: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    alignItems: 'center',
+  },
+  cartSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: CORES.textoPrincipal,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  viewCartButton: {
+    backgroundColor: CORES.dourado,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  viewCartButtonText: {
+    color: CORES.botaoTexto,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  continueShoppingButton: {
+    backgroundColor: CORES.dourado,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 16,
+  },
+  continueShoppingText: {
+    color: CORES.botaoTexto,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  // Botão Sair
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',

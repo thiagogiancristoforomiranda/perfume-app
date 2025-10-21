@@ -20,6 +20,7 @@ const CORES = {
   borda: '#2A2A2A',
   botaoTexto: '#000000',
   sucesso: '#4CAF50',
+  erro: '#F44336',
 };
 
 interface Perfume {
@@ -42,6 +43,8 @@ export default function PerfumeDetailScreen() {
   const [perfume, setPerfume] = useState<Perfume | null>(null);
   const [loading, setLoading] = useState(true);
   const [notasOlfativas, setNotasOlfativas] = useState<NotasOlfativas | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const { signed } = useAuth();
   const router = useRouter();
   const navigation = useNavigation();
@@ -50,9 +53,8 @@ export default function PerfumeDetailScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // Simulação de notas olfativas - você pode substituir por uma API real
+  // Simulação de notas olfativas
   const obterNotasOlfativas = (perfumeName: string) => {
-    // Esta é uma simulação - na prática, você teria uma API para isso
     const notasBase: { [key: string]: NotasOlfativas } = {
       'Invictus': {
         saida: ['Toranja', 'Água Marinha', 'Cardamomo'],
@@ -76,6 +78,48 @@ export default function PerfumeDetailScreen() {
       coracao: ['Nota Floral', 'Nota Especiada'],
       base: ['Nota Amadeirada', 'Nota Musk']
     };
+  };
+
+  // Verificar se o perfume é favorito
+  const checkFavorite = async () => {
+    if (!signed || !perfume) return;
+    
+    try {
+      const response = await api.get(`/favorites/check/${perfume.id}/`);
+      setIsFavorite(response.data.is_favorite);
+    } catch (error) {
+      console.error("Erro ao verificar favorito:", error);
+    }
+  };
+
+  // Toggle favorito
+  const toggleFavorite = async () => {
+    if (!signed) {
+      Alert.alert("Atenção", "Você precisa fazer o login para favoritar perfumes.");
+      router.push({ pathname: '/login' } as any);
+      return;
+    }
+    
+    if (!perfume) return;
+    
+    setFavoriteLoading(true);
+    try {
+      const response = await api.post('/favorites/toggle/', {
+        perfume_id: perfume.id,
+      });
+      setIsFavorite(response.data.is_favorite);
+      
+      if (response.data.is_favorite) {
+        Alert.alert("❤️ Adicionado aos favoritos!");
+      } else {
+        Alert.alert("💔 Removido dos favoritos");
+      }
+    } catch (error) {
+      console.error("Erro ao favoritar:", error);
+      Alert.alert("Erro", "Não foi possível favoritar o perfume.");
+    } finally {
+      setFavoriteLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -106,6 +150,12 @@ export default function PerfumeDetailScreen() {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (perfume && signed) {
+      checkFavorite();
+    }
+  }, [perfume, signed]);
+
   useLayoutEffect(() => {
     if (perfume) {
       navigation.setOptions({
@@ -122,9 +172,26 @@ export default function PerfumeDetailScreen() {
           fontSize: 18,
         },
         headerBackTitleVisible: false,
+        headerRight: () => (
+          <Pressable 
+            onPress={toggleFavorite}
+            disabled={favoriteLoading}
+            style={{ marginRight: 15 }}
+          >
+            {favoriteLoading ? (
+              <ActivityIndicator size="small" color={CORES.dourado} />
+            ) : (
+              <Ionicons 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={24} 
+                color={isFavorite ? CORES.erro : CORES.textoPrincipal} 
+              />
+            )}
+          </Pressable>
+        ),
       });
     }
-  }, [navigation, perfume]);
+  }, [navigation, perfume, isFavorite, favoriteLoading]);
 
   const handleAddToCart = async () => {
     if (!signed) {
