@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, Text, View, FlatList, SafeAreaView,
     ActivityIndicator, Alert, Pressable, StatusBar, Image,
-    Animated, Easing
+    Animated, Easing, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../src/services/api';
@@ -31,9 +31,13 @@ const CORES = {
 
 export default function HomeScreen() {
   const [perfumes, setPerfumes] = useState<Perfume[]>([]);
+  const [perfumesFiltrados, setPerfumesFiltrados] = useState<Perfume[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pesquisa, setPesquisa] = useState('');
+  const [modoPesquisa, setModoPesquisa] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(0.9))[0];
+  const searchAnim = useState(new Animated.Value(0))[0];
   const router = useRouter();
 
   // Função para buscar os dados
@@ -42,6 +46,7 @@ export default function HomeScreen() {
       setLoading(true);
       const response = await api.get('/perfumes');
       setPerfumes(response.data);
+      setPerfumesFiltrados(response.data);
     } catch (error) {
       console.error('Erro ao buscar perfumes:', error);
       Alert.alert('Erro', 'Não foi possível carregar os perfumes.');
@@ -49,6 +54,43 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }
+
+  // Função de pesquisa
+  const handlePesquisa = (texto: string) => {
+    setPesquisa(texto);
+    
+    if (texto.trim() === '') {
+      setPerfumesFiltrados(perfumes);
+    } else {
+      const filtrado = perfumes.filter(perfume => 
+        perfume.name?.toLowerCase().includes(texto.toLowerCase()) ||
+        perfume.brand?.toLowerCase().includes(texto.toLowerCase())
+      );
+      setPerfumesFiltrados(filtrado);
+    }
+  };
+
+  // Alternar modo pesquisa
+  const togglePesquisa = () => {
+    if (modoPesquisa) {
+      // Fechar pesquisa
+      setPesquisa('');
+      setPerfumesFiltrados(perfumes);
+      Animated.timing(searchAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start(() => setModoPesquisa(false));
+    } else {
+      // Abrir pesquisa
+      setModoPesquisa(true);
+      Animated.timing(searchAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  };
 
   // Animação de entrada
   useEffect(() => {
@@ -141,6 +183,12 @@ export default function HomeScreen() {
     );
   };
 
+  // Largura animada do campo de pesquisa
+  const searchWidth = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '70%'],
+  });
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
@@ -159,26 +207,70 @@ export default function HomeScreen() {
         ]}
       >
         <View style={styles.headerContent}>
-          <Image
-            source={require('../../assets/images/logo.png')}
-            style={styles.logo}
-          />
+          {!modoPesquisa && (
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logo}
+            />
+          )}
+          
           <View style={styles.headerIcons}>
-            <Pressable style={styles.iconButton}>
-              <Ionicons name="search" size={24} color={CORES.textoPrincipal} />
-            </Pressable>
+            {/* Campo de Pesquisa Animado */}
+            <Animated.View style={[styles.searchContainer, { width: searchWidth }]}>
+              {modoPesquisa && (
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Buscar perfumes..."
+                  placeholderTextColor={CORES.textoSecundario}
+                  value={pesquisa}
+                  onChangeText={handlePesquisa}
+                  autoFocus={true}
+                  selectionColor={CORES.dourado}
+                />
+              )}
+            </Animated.View>
+
+            {/* Botão de Pesquisa */}
             <Pressable 
-              style={styles.iconButton} 
-              onPress={handleProfilePress} // 👈 AQUI ESTÁ A NAVEGAÇÃO PARA O PERFIL
+              style={[
+                styles.iconButton, 
+                modoPesquisa && styles.iconButtonActive
+              ]} 
+              onPress={togglePesquisa}
             >
-              <Ionicons name="person" size={24} color={CORES.textoPrincipal} />
+              <Ionicons 
+                name={modoPesquisa ? "close" : "search"} 
+                size={24} 
+                color={modoPesquisa ? CORES.dourado : CORES.textoPrincipal} 
+              />
             </Pressable>
+
+            {/* Botão do Perfil */}
+            {!modoPesquisa && (
+              <Pressable 
+                style={styles.iconButton} 
+                onPress={handleProfilePress}
+              >
+                <Ionicons name="person" size={24} color={CORES.textoPrincipal} />
+              </Pressable>
+            )}
           </View>
         </View>
         
-        {/* Subtítulo elegante */}
-        <Text style={styles.subtitle}>Perfumaria Ledo - desde 1950</Text>
+        {/* Subtítulo elegante - esconder durante pesquisa */}
+        {!modoPesquisa && (
+          <Text style={styles.subtitle}>Perfumaria Ledo - desde 1950</Text>
+        )}
       </Animated.View>
+
+      {/* Indicador de pesquisa ativa */}
+      {modoPesquisa && pesquisa !== '' && (
+        <View style={styles.searchInfo}>
+          <Text style={styles.searchInfoText}>
+            {perfumesFiltrados.length} perfume{perfumesFiltrados.length !== 1 ? 's' : ''} encontrado{perfumesFiltrados.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      )}
 
       {/* Conteúdo Principal */}
       <Animated.View 
@@ -197,7 +289,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <FlatList
-            data={perfumes}
+            data={perfumesFiltrados}
             renderItem={({ item, index }) => <PerfumeCard item={item} index={index} />}
             keyExtractor={(item, index) => item?.id?.toString() ?? `item-${index}`}
             refreshing={loading}
@@ -206,9 +298,17 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Ionicons name="rose-outline" size={64} color={CORES.dourado} />
-                <Text style={styles.emptyListText}>Nenhum perfume encontrado</Text>
-                <Text style={styles.emptyListSubtext}>Nossa coleção está sendo atualizada</Text>
+                <Ionicons 
+                  name={pesquisa ? "search-outline" : "rose-outline"} 
+                  size={64} 
+                  color={CORES.dourado} 
+                />
+                <Text style={styles.emptyListText}>
+                  {pesquisa ? 'Nenhum perfume encontrado' : 'Nenhum perfume encontrado'}
+                </Text>
+                <Text style={styles.emptyListSubtext}>
+                  {pesquisa ? 'Tente outros termos de busca' : 'Nossa coleção está sendo atualizada'}
+                </Text>
               </View>
             }
           />
@@ -247,12 +347,41 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     flexDirection: 'row',
-    gap: 15,
+    alignItems: 'center',
+    gap: 10,
+  },
+  // Estilos da Pesquisa
+  searchContainer: {
+    overflow: 'hidden',
+  },
+  searchInput: {
+    backgroundColor: CORES.card,
+    color: CORES.textoPrincipal,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: CORES.dourado,
+  },
+  searchInfo: {
+    backgroundColor: CORES.dourado,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  searchInfoText: {
+    color: CORES.fundo,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   iconButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: CORES.card,
+  },
+  iconButtonActive: {
+    backgroundColor: CORES.dourado,
   },
   subtitle: {
     color: CORES.dourado,

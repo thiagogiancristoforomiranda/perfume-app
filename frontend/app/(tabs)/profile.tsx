@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, ScrollView, Alert, StatusBar, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, Pressable, Image, ScrollView, Alert, StatusBar, Dimensions, RefreshControl } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/context/AuthContext';
 import api from '../../src/services/api';
@@ -45,7 +45,7 @@ interface Favorite {
   perfume: Perfume;
 }
 
-// Componente de Item do Menu (AGORA DEFINIDO FORA DO COMPONENTE PRINCIPAL)
+// Componente de Item do Menu
 const MenuItem = ({ icon, title, subtitle, onPress, isLast = false }: any) => (
   <Pressable 
     style={[styles.menuItem, isLast && styles.menuItemLast]} 
@@ -166,36 +166,92 @@ const PedidosTab = ({ orders }: any) => (
 );
 
 // Componente da Aba Favoritos
-const FavoritosTab = ({ favorites, router }: any) => (
-  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
-    {favorites.length === 0 ? (
-      <View style={styles.emptyState}>
-        <Ionicons name="heart-outline" size={64} color={CORES.dourado} />
-        <Text style={styles.emptyStateTitle}>Nenhum favorito</Text>
-        <Text style={styles.emptyStateText}>Seus perfumes favoritos aparecerão aqui</Text>
-      </View>
-    ) : (
-      favorites.map((favorite: Favorite) => (
-        <Pressable 
-          key={favorite.id} 
-          style={styles.favoriteItem}
-          onPress={() => router.push(`/perfumes/${favorite.perfume.id}`)}
-        >
-          <Image 
-            source={{ uri: favorite.perfume.image?.replace('127.0.0.1', '192.168.0.101') }}
-            style={styles.favoriteImage}
-          />
-          <View style={styles.favoriteDetails}>
-            <Text style={styles.favoriteName}>{favorite.perfume.name}</Text>
-            <Text style={styles.favoriteBrand}>{favorite.perfume.brand}</Text>
-            <Text style={styles.favoritePrice}>R$ {favorite.perfume.price}</Text>
-          </View>
-          <Ionicons name="heart" size={24} color={CORES.erro} />
-        </Pressable>
-      ))
-    )}
-  </ScrollView>
-);
+const FavoritosTab = ({ favorites, router, onRefresh }: any) => {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
+  };
+
+  const handleRemoveFavorite = async (perfumeId: number) => {
+    Alert.alert(
+      "Remover Favorito",
+      "Tem certeza que deseja remover este perfume dos favoritos?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        { 
+          text: "Remover", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.post('/favorites/remove/', { perfume_id: perfumeId });
+              // Atualiza a lista automaticamente
+              await onRefresh();
+            } catch (error) {
+              console.error('Erro ao remover favorito:', error);
+              Alert.alert('Erro', 'Não foi possível remover o favorito.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <ScrollView 
+      style={styles.tabScrollView} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor={CORES.dourado}
+          colors={[CORES.dourado]}
+        />
+      }
+    >
+      {favorites.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="heart-outline" size={64} color={CORES.dourado} />
+          <Text style={styles.emptyStateTitle}>Nenhum favorito</Text>
+          <Text style={styles.emptyStateText}>Seus perfumes favoritos aparecerão aqui</Text>
+        </View>
+      ) : (
+        favorites.map((favorite: Favorite) => (
+          <Pressable 
+            key={favorite.id} 
+            style={styles.favoriteItem}
+            onPress={() => router.push(`/perfumes/${favorite.perfume.id}`)}
+          >
+            <Image 
+              source={{ 
+                uri: favorite.perfume.image?.replace('127.0.0.1', '192.168.0.101') || 
+                     'https://via.placeholder.com/50x50/1A1A1A/FFFFFF?text=Perfume'
+              }}
+              style={styles.favoriteImage}
+            />
+            <View style={styles.favoriteDetails}>
+              <Text style={styles.favoriteName}>{favorite.perfume.name}</Text>
+              <Text style={styles.favoriteBrand}>{favorite.perfume.brand}</Text>
+              <Text style={styles.favoritePrice}>R$ {favorite.perfume.price}</Text>
+            </View>
+            <Pressable 
+              style={styles.removeFavoriteButton}
+              onPress={() => handleRemoveFavorite(favorite.perfume.id)}
+            >
+              <Ionicons name="heart" size={24} color={CORES.erro} />
+            </Pressable>
+          </Pressable>
+        ))
+      )}
+    </ScrollView>
+  );
+};
 
 // Componente da Aba Carrinho
 const CarrinhoTab = ({ cartItemsCount, router }: any) => (
@@ -235,16 +291,13 @@ export default function ProfileScreen() {
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Buscar dados do usuário
-  useEffect(() => {
-    if (signed) {
-      fetchUserData();
-    } else {
-      setLoading(false);
-    }
-  }, [signed]);
-
+  // Função para buscar dados do usuário
   const fetchUserData = async () => {
+    if (!signed) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -258,13 +311,7 @@ export default function ProfileScreen() {
       }
 
       // Buscar favoritos
-      try {
-        const favoritesResponse = await api.get('/favorites/');
-        setFavorites(favoritesResponse.data);
-      } catch (error) {
-        console.error('Erro ao buscar favoritos:', error);
-        setFavorites([]);
-      }
+      await fetchFavorites();
 
       // Buscar carrinho
       try {
@@ -281,6 +328,33 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
+
+  // Função específica para buscar favoritos
+  const fetchFavorites = async () => {
+    if (!signed) return;
+    
+    try {
+      const favoritesResponse = await api.get('/favorites/');
+      setFavorites(favoritesResponse.data);
+    } catch (error) {
+      console.error('Erro ao buscar favoritos:', error);
+      setFavorites([]);
+    }
+  };
+
+  // Atualizar dados quando a tela receber foco
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserData();
+    }, [signed])
+  );
+
+  // Atualizar dados quando mudar de aba
+  useEffect(() => {
+    if (signed && activeTab === 'favoritos') {
+      fetchFavorites();
+    }
+  }, [activeTab, signed]);
 
   const handleLoginPress = () => {
     router.push('/login');
@@ -352,7 +426,11 @@ export default function ProfileScreen() {
       case 'pedidos':
         return <PedidosTab orders={orders} />;
       case 'favoritos':
-        return <FavoritosTab favorites={favorites} router={router} />;
+        return <FavoritosTab 
+          favorites={favorites} 
+          router={router} 
+          onRefresh={fetchFavorites}
+        />;
       case 'carrinho':
         return <CarrinhoTab cartItemsCount={cartItemsCount} router={router} />;
       default:
@@ -826,6 +904,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: CORES.dourado,
+  },
+  removeFavoriteButton: {
+    padding: 8,
   },
   // Carrinho
   cartSummary: {
