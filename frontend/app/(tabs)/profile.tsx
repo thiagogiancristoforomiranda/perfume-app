@@ -94,17 +94,6 @@ const PerfilTab = ({ user, ordersCount, favoritesCount, onSignOut }: any) => (
         icon={<Ionicons name="location-outline" size={22} color={CORES.dourado} />}
         title="Endereços"
         subtitle="Gerencie seus endereços"
-      />
-    </View>
-
-    {/* Mais Opções */}
-    <View style={styles.menuSection}>
-      <Text style={styles.sectionTitle}>Mais</Text>
-      
-      <MenuItem
-        icon={<Ionicons name="help-circle-outline" size={22} color={CORES.dourado} />}
-        title="Ajuda & Suporte"
-        subtitle="Central de ajuda"
         isLast={true}
       />
     </View>
