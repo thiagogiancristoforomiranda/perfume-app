@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Garanta que esta linha está assim, com seu IP correto
-export const API_URL = 'http://192.168.0.101:8000'; 
+export const API_URL = 'https://perfume-app-backend-kc2d.onrender.com';
 
 const api = axios.create({
   // E esta linha está montando a URL da API corretamente
