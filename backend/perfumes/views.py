@@ -1,8 +1,8 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import User
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Perfume, Cart, CartItem, Order, Favorite
 from .serializers import (
     UserSerializer, PerfumeSerializer, 
@@ -15,8 +15,16 @@ from .serializers import (
 def register_user(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        user = serializer.save()
+        
+        # Gerar token JWT automaticamente após registro
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'user': serializer.data,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -24,11 +32,26 @@ def register_user(request):
 def user_login(request):
     username = request.data.get('username')
     password = request.data.get('password')
-    user = authenticate(username=username, password=password)
-    if user:
-        login(request, user)
-        return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
-    return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    try:
+        user = User.objects.get(username=username)
+        if user.check_password(password):
+            # Gerar token JWT
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'message': 'Login successful',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                },
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
@@ -45,12 +68,12 @@ def user_profile(request):
     })
 
 class PerfumeList(generics.ListAPIView):
-    permission_classes = [permissions.AllowAny]  # ✅ Permitir acesso sem login
+    permission_classes = [permissions.AllowAny]
     queryset = Perfume.objects.all()
     serializer_class = PerfumeSerializer
 
-class PerfumeDetail(generics.RetrieveAPIView):  # ✅ Mudar para RetrieveAPIView
-    permission_classes = [permissions.AllowAny]  # ✅ Permitir acesso sem login
+class PerfumeDetail(generics.RetrieveAPIView):
+    permission_classes = [permissions.AllowAny]
     queryset = Perfume.objects.all()
     serializer_class = PerfumeSerializer
 
