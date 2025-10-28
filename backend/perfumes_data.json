@@ -1,10 +1,10 @@
 [
 {
     "model": "perfumes.perfume",
-    "pk": 2,
+    "pk": 1,
     "fields": {
         "name": "Invictus",
-        "description": "Uma fragrÔncia amadeirada aqußtica para homens.",
+        "description": "Uma fragrância amadeirada aquática para homens.",
         "price": "350.00",
         "image": "perfumes/invictus-64b44fe2a25d9.png",
         "in_stock": true,
@@ -13,10 +13,10 @@
 },
 {
     "model": "perfumes.perfume",
-    "pk": 3,
+    "pk": 2,
     "fields": {
         "name": "Aqua di Gio Profondo",
-        "description": "Um clßssico aromßtico aqußtico.",
+        "description": "Um clássico aromático aquático.",
         "price": "450.00",
         "image": "perfumes/23bab6f2-c92b-4230-a2fb-146eae25.png",
         "in_stock": true,
