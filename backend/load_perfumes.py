@@ -1,6 +1,6 @@
 import os
 import django
-import json
+from django.core.management import execute_from_command_line
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 django.setup()
@@ -8,34 +8,38 @@ django.setup()
 def load_perfumes():
     from perfumes.models import Perfume
     
-    perfumes = [
+    print("🎯 INICIANDO CARREGAMENTO DE PERFUMES...")
+    
+    # Dados dos perfumes DIRETO no código
+    perfumes_data = [
         {
             "name": "Invictus",
             "description": "Uma fragrância amadeirada aquática para homens.",
-            "price": "350.00",
+            "price": 350.00,
             "in_stock": True
         },
         {
             "name": "Aqua di Gio Profondo", 
             "description": "Um clássico aromático aquático.",
-            "price": "450.00", 
+            "price": 450.00, 
             "in_stock": True
         }
     ]
     
-    print("📦 Criando perfumes diretamente no código...")
+    count = 0
+    for data in perfumes_data:
+        # Remove perfumes existentes com mesmo nome
+        Perfume.objects.filter(name=data['name']).delete()
+        
+        # Cria novo perfume
+        perfume = Perfume.objects.create(**data)
+        print(f"✅ CRIADO: {perfume.name} - R$ {perfume.price}")
+        count += 1
     
-    for data in perfumes:
-        perfume, created = Perfume.objects.get_or_create(
-            name=data['name'],
-            defaults=data
-        )
-        if created:
-            print(f"✅ Criado: {perfume.name}")
-        else:
-            print(f"⚠️  Já existe: {perfume.name}")
+    total = Perfume.objects.count()
+    print(f"🎉 CARREGAMENTO CONCLUÍDO! Total no banco: {total} perfumes")
     
-    print(f"🎉 Total de perfumes no banco: {Perfume.objects.count()}")
+    return count
 
 if __name__ == '__main__':
     load_perfumes()

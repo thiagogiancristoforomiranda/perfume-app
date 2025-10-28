@@ -209,8 +209,6 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
-SILENCED_SYSTEM_CHECKS = ['urls.W005']
-
 # Configuração do WhiteNoise para static files
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
