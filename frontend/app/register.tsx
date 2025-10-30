@@ -60,11 +60,16 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      await api.post('/register/', {
+      
+      // 👇 ===== CORREÇÃO DA URL AQUI ===== 👇
+      // O seu backend espera a rota em 'auth/register/'
+      await api.post('/auth/register/', {
         username,
         email,
         password,
       });
+      // ===================================
+      
       Alert.alert(
         '🎉 Sucesso!',
         'Sua conta foi criada com sucesso!',
