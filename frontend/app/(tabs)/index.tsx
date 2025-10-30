@@ -40,18 +40,28 @@ export default function HomeScreen() {
   const searchAnim = useState(new Animated.Value(0))[0];
   const router = useRouter();
 
-  // Função para buscar os dados
+  // Função para buscar os dados (CORRIGIDA)
   async function fetchPerfumes() {
     try {
-      setLoading(true);
-      const response = await api.get('/perfumes');
+      setLoading(true); // Garantir que o loading aparece ao recarregar
+      
+      // 👇 ===== CORREÇÃO DA BARRA "/" ===== 👇
+      const response = await api.get('/perfumes/');
+      // ======================================
+      
       setPerfumes(response.data);
       setPerfumesFiltrados(response.data);
     } catch (error) {
       console.error('Erro ao buscar perfumes:', error);
       Alert.alert('Erro', 'Não foi possível carregar os perfumes.');
+      
+      // 👇 ===== ADICIONADO PARA PARAR O LOADING EM CASO DE ERRO ===== 👇
+      setPerfumes([]); // Limpa a lista em caso de erro
+      setPerfumesFiltrados([]); // Limpa a lista filtrada
+      // =============================================================
+
     } finally {
-      setLoading(false);
+      setLoading(false); // Garante que o loading pare
     }
   }
 
