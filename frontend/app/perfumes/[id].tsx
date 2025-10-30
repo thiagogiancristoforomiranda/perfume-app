@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Button, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions } from 'react-native';
+// app/perfumes/[id].tsx
+import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Button, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions, Platform } from 'react-native'; // 1. Importar Platform
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ const CORES = {
   botaoTexto: '#000000',
   sucesso: '#4CAF50',
   erro: '#F44336',
+  placeholderImg: '#2C2C2C', 
 };
 
 interface Perfume {
@@ -29,7 +31,7 @@ interface Perfume {
   brand: string;
   price: string;
   description: string;
-  image: string;
+  image: string | null; // A imagem PODE SER nula
 }
 
 interface NotasOlfativas {
@@ -49,12 +51,11 @@ export default function PerfumeDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   
-  // Animações
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // Simulação de notas olfativas
-  const obterNotasOlfativas = (perfumeName: string) => {
+  // Simulação de notas olfativas (com tipo de retorno corrigido)
+  const obterNotasOlfativas = (perfumeName: string): NotasOlfativas => {
     const notasBase: { [key: string]: NotasOlfativas } = {
       'Invictus': {
         saida: ['Toranja', 'Água Marinha', 'Cardamomo'],
@@ -72,7 +73,6 @@ export default function PerfumeDetailScreen() {
         base: ['Musk', 'Âmbar', 'Sândalo']
       }
     };
-
     return notasBase[perfumeName] || {
       saida: ['Nota Cítrica', 'Nota Frutal'],
       coracao: ['Nota Floral', 'Nota Especiada'],
@@ -83,7 +83,6 @@ export default function PerfumeDetailScreen() {
   // Verificar se o perfume é favorito
   const checkFavorite = async () => {
     if (!signed || !perfume) return;
-    
     try {
       const response = await api.get(`/favorites/check/${perfume.id}/`);
       setIsFavorite(response.data.is_favorite);
@@ -99,16 +98,13 @@ export default function PerfumeDetailScreen() {
       router.push({ pathname: '/login' } as any);
       return;
     }
-    
     if (!perfume) return;
-    
     setFavoriteLoading(true);
     try {
       const response = await api.post('/favorites/toggle/', {
         perfume_id: perfume.id,
       });
       setIsFavorite(response.data.is_favorite);
-      
       if (response.data.is_favorite) {
         Alert.alert("❤️ Adicionado aos favoritos!");
       } else {
@@ -122,62 +118,46 @@ export default function PerfumeDetailScreen() {
     }
   };
 
+  // Busca os dados
   useEffect(() => {
     if (id) {
       api.get(`/perfumes/${id}/`)
         .then(response => {
           const perfumeData = response.data;
           setPerfume(perfumeData);
-          setNotasOlfativas(obterNotasOlfativas(perfumeData.name));
+          if (perfumeData && perfumeData.name) {
+             setNotasOlfativas(obterNotasOlfativas(perfumeData.name));
+          }
         })
         .catch(error => console.error("Erro ao buscar detalhe do perfume:", error))
         .finally(() => {
           setLoading(false);
-          // Animações de entrada
           Animated.parallel([
-            Animated.timing(fadeAnim, {
-              toValue: 1,
-              duration: 800,
-              useNativeDriver: true,
-            }),
-            Animated.timing(slideAnim, {
-              toValue: 0,
-              duration: 600,
-              useNativeDriver: true,
-            })
+            Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+            Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true })
           ]).start();
         });
     }
   }, [id]);
 
+  // Verifica favoritos quando logado
   useEffect(() => {
     if (perfume && signed) {
       checkFavorite();
     }
   }, [perfume, signed]);
 
+  // Atualiza o cabeçalho
   useLayoutEffect(() => {
     if (perfume) {
       navigation.setOptions({
         title: perfume.name,
-        headerStyle: { 
-          backgroundColor: CORES.fundo,
-          shadowColor: 'transparent',
-          elevation: 0,
-        },
+        headerStyle: { backgroundColor: CORES.fundo, shadowColor: 'transparent', elevation: 0 },
         headerTintColor: CORES.dourado,
-        headerTitleStyle: { 
-          color: CORES.textoPrincipal,
-          fontWeight: '600',
-          fontSize: 18,
-        },
+        headerTitleStyle: { color: CORES.textoPrincipal, fontWeight: '600', fontSize: 18 },
         headerBackTitleVisible: false,
         headerRight: () => (
-          <Pressable 
-            onPress={toggleFavorite}
-            disabled={favoriteLoading}
-            style={{ marginRight: 15 }}
-          >
+          <Pressable onPress={toggleFavorite} disabled={favoriteLoading} style={{ marginRight: 15 }}>
             {favoriteLoading ? (
               <ActivityIndicator size="small" color={CORES.dourado} />
             ) : (
@@ -193,6 +173,7 @@ export default function PerfumeDetailScreen() {
     }
   }, [navigation, perfume, isFavorite, favoriteLoading]);
 
+  // Função para adicionar ao carrinho
   const handleAddToCart = async () => {
     if (!signed) {
       Alert.alert("Atenção", "Você precisa fazer o login para adicionar itens ao carrinho.");
@@ -204,8 +185,6 @@ export default function PerfumeDetailScreen() {
         perfume_id: perfume?.id,
         quantity: 1,
       });
-      
-      // Feedback visual de sucesso
       Alert.alert("🎉 Sucesso!", `${perfume?.name} foi adicionado ao carrinho.`);
     } catch (error) {
       console.error("Erro ao adicionar ao carrinho:", error);
@@ -213,6 +192,7 @@ export default function PerfumeDetailScreen() {
     }
   };
 
+  // Componente de Nota Olfativa
   const NotaOlfativaCard = ({ titulo, notas, cor }: { titulo: string, notas: string[], cor: string }) => (
     <View style={styles.notaContainer}>
       <View style={[styles.notaHeader, { borderLeftColor: cor }]}>
@@ -248,6 +228,22 @@ export default function PerfumeDetailScreen() {
     );
   }
 
+  // ===== CORREÇÃO DE LÓGICA DA URL DA IMAGEM =====
+  let imageUrl: string | null = null;
+  if (perfume.image && typeof perfume.image === 'string') {
+    // A API retorna a URL completa (ex: http://127.0.0.1:8000/media/...)
+    if (Platform.OS === 'web') {
+      // Na WEB (localhost), 127.0.0.1 funciona.
+      imageUrl = perfume.image;
+    } else {
+      // No MOBILE (Expo Go), 127.0.0.1 NÃO funciona.
+      // Precisamos substituir pelo IP da rede (o mesmo do seu api.js)
+      // Substitua '192.168.0.101' pelo seu IP de rede se for diferente.
+      imageUrl = perfume.image.replace('127.0.0.1', '192.168.0.101'); 
+    }
+  }
+  // =============================================
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
@@ -256,7 +252,7 @@ export default function PerfumeDetailScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Imagem do Perfume */}
+        {/* Imagem do Perfume (com verificação) */}
         <Animated.View 
           style={[
             styles.imageContainer,
@@ -266,10 +262,17 @@ export default function PerfumeDetailScreen() {
             }
           ]}
         >
-          <Image
-            source={{ uri: perfume.image.replace('127.0.0.1', '192.168.0.101') }}
-            style={styles.perfumeImage}
-          />
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.perfumeImage}
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={64} color={CORES.textoSecundario} />
+              <Text style={styles.imagePlaceholderText}>Sem Imagem</Text>
+            </View>
+          )}
           <View style={styles.imageOverlay} />
         </Animated.View>
 
@@ -286,7 +289,7 @@ export default function PerfumeDetailScreen() {
           {/* Header Info */}
           <View style={styles.headerInfo}>
             <View>
-              <Text style={styles.brand}>{perfume.brand}</Text>
+              <Text style={styles.brand}>{perfume.brand ?? 'Marca'}</Text>
               <Text style={styles.name}>{perfume.name}</Text>
             </View>
             <View style={styles.ratingContainer}>
@@ -374,6 +377,7 @@ export default function PerfumeDetailScreen() {
   );
 }
 
+// ... (Todos os seus styles 'lindos' continuam os mesmos) ...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -387,6 +391,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
+    backgroundColor: CORES.fundo, 
   },
   loadingText: {
     color: CORES.textoSecundario,
@@ -400,11 +405,24 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     height: 350,
+    backgroundColor: CORES.card, 
   },
   perfumeImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: CORES.card,
+  },
+  imagePlaceholderText: {
+    color: CORES.textoSecundario,
+    marginTop: 10,
+    fontSize: 14,
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,

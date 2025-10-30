@@ -13,7 +13,7 @@ try:
     print("🎯 INICIANDO CARREGAMENTO DE PERFUMES...")
     print(f"📊 Perfumes no banco ANTES: {Perfume.objects.count()}")
     
-    # Dados dos perfumes
+    # Dados dos perfumes (sem o campo 'brand')
     perfumes_data = [
         {
             "name": "Invictus",
