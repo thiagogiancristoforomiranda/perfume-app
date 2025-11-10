@@ -50,16 +50,30 @@ export default function RootLayout() {
           options={{ title: 'Faça seu Login' }} 
         />
 
-        {/* ===== ROTA DE REGISTER ADICIONADA E ESTILIZADA AQUI ===== */}
         <Stack.Screen 
           name="register" 
           options={{ 
             title: 'Faça o seu registro' 
           }} 
         />
-        {/* ======================================================== */}
         
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+
+        {/* ===== ROTAS SEM CABEÇALHO ADICIONADAS AQUI ===== */}
+        <Stack.Screen 
+          name="address" // Movemos o arquivo para app/address.tsx
+          options={{ 
+            headerShown: false // Esconde o cabeçalho padrão
+          }} 
+        />
+        <Stack.Screen 
+          name="user-data" // O arquivo app/user-data.tsx
+          options={{ 
+            headerShown: false // Esconde o cabeçalho padrão
+          }} 
+        />
+        {/* ================================================== */}
+
       </Stack>
     </AuthProvider>
   );

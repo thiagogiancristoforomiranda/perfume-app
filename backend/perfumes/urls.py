@@ -31,4 +31,10 @@ urlpatterns = [
     path('favorites/toggle/', views.toggle_favorite, name='toggle-favorite'),
     path('favorites/remove/', views.remove_favorite, name='remove-favorite'),
     path('favorites/check/<int:perfume_id>/', views.check_favorite, name='check-favorite'),
+
+    # --- CÓDIGO ADICIONADO ---
+    # Endereços
+    path('addresses/', views.AddressListCreate.as_view(), name='address-list-create'),
+    path('addresses/<int:pk>/', views.AddressDetail.as_view(), name='address-detail'),
+    # --- FIM DO CÓDIGO ADICIONADO ---
 ]

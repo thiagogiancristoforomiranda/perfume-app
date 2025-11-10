@@ -1,5 +1,5 @@
 // app/perfumes/[id].tsx
-import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Button, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions, Platform } from 'react-native'; // 1. Importar Platform
+import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Button, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,10 +28,9 @@ const CORES = {
 interface Perfume {
   id: number;
   name: string;
-  brand: string;
   price: string;
   description: string;
-  image: string | null; // A imagem PODE SER nula
+  image: string | null;
 }
 
 interface NotasOlfativas {
@@ -54,31 +53,234 @@ export default function PerfumeDetailScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // Simulação de notas olfativas (com tipo de retorno corrigido)
+  //
+  // --- AQUI ESTÃO AS NOTAS DE TODOS OS SEUS PERFUMES ---
+  //
   const obterNotasOlfativas = (perfumeName: string): NotasOlfativas => {
     const notasBase: { [key: string]: NotasOlfativas } = {
-      'Invictus': {
-        saida: ['Toranja', 'Água Marinha', 'Cardamomo'],
-        coracao: ['Folha de Amora', 'Ámbar'],
-        base: ['Âmbar Gris', 'Baunilha', 'Musk']
-      },
-      'Aqua di Gio Profondo': {
-        saida: ['Bergamota', 'Mandarina', 'Néroli'],
-        coracao: ['Alecrim Marinho', 'Violeta', 'Pimenta Rosa'],
-        base: ['Patchouli', 'Incenso', 'Musk']
-      },
-      'Imícias': {
-        saida: ['Lima', 'Pimenta Rosa', 'Folhas Verdes'],
-        coracao: ['Jasmim', 'Tuberosa', 'Ylang-Ylang'],
-        base: ['Musk', 'Âmbar', 'Sândalo']
-      }
+        // PERFUMES DA SUA LISTA
+        'La vie est Belle Lancôme EDP 100 ML': {
+            saida: ['Pera', 'Cassis', 'Groselha Preta'],
+            coracao: ['Íris', 'Jasmim', 'Flor de Laranjeira'],
+            base: ['Pralinê', 'Baunilha', 'Patchouli']
+        },
+        'Miracle Lancôme EDP 30 ML': {
+            saida: ['Lichia', 'Frésia'],
+            coracao: ['Magnólia', 'Gengibre', 'Pimenta'],
+            base: ['Âmbar', 'Almíscar', 'Jasmim']
+        },
+        'Kenzo Amour EDP 30 ML': {
+            saida: ['Chá Branco', 'Arroz'],
+            coracao: ['Flor de Cerejeira', 'Jasmim-Manga', 'Heliotrópio'],
+            base: ['Baunilha', 'Incenso', 'Madeiras']
+        },
+        'CK One Calvin Klein EDT 200 ML': {
+            saida: ['Abacaxi', 'Limão', 'Bergamota', 'Cardamomo'],
+            coracao: ['Violeta', 'Noz-moscada', 'Raiz de Orris'],
+            base: ['Sândalo', 'Almíscar', 'Cedro']
+        },
+        'Cool Water Davidoff EDT 125 ML': {
+            saida: ['Água do Mar', 'Menta', 'Lavanda', 'Coentro'],
+            coracao: ['Sândalo', 'Néroli', 'Gerânio'],
+            base: ['Almíscar', 'Musgo de Carvalho', 'Tabaco']
+        },
+        'Silver Scent Jacques Bogart EDT 200 ML': {
+            saida: ['Flor de Laranjeira', 'Limão'],
+            coracao: ['Alecrim', 'Lavanda', 'Noz-moscada'],
+            base: ['Fava Tonka', 'Madeira de Teca', 'Vetiver']
+        },
+        'Good Girl Carolina Herrera EDP 150 ML': {
+            saida: ['Amêndoa', 'Café', 'Bergamota'],
+            coracao: ['Tuberosa', 'Jasmim Sambac', 'Flor de Laranjeira'],
+            base: ['Fava Tonka', 'Cacau', 'Baunilha']
+        },
+        '212 Vip Men Carolina Herrera EDT 200 ML': {
+            saida: ['Maracujá', 'Gengibre', 'Pimenta'],
+            coracao: ['Vodka', 'Gin', 'Menta'],
+            base: ['Âmbar', 'Couro', 'Notas Amadeiradas']
+        },
+        '212 Vip Black Carolina Herrera EDP 200 ML': {
+            saida: ['Absinto', 'Anis', 'Erva-doce'],
+            coracao: ['Lavanda'],
+            base: ['Baunilha Negra', 'Almíscar']
+        },
+        'Aromatics Elixir Clinique EDP 100 ML': {
+            saida: ['Camomila', 'Sálvia', 'Verbena'],
+            coracao: ['Rosa', 'Jasmim', 'Ylang Ylang'],
+            base: ['Musgo de Carvalho', 'Patchouli', 'Vetiver']
+        },
+        'Red Door Elizabeth Arden EDT 100 ML': {
+            saida: ['Flor de Laranjeira', 'Ameixa', 'Violeta'],
+            coracao: ['Rosa', 'Orquídea', 'Jasmim'],
+            base: ['Mel', 'Sândalo', 'Heliotrópio']
+        },
+        'Giorgio Beverly Hills EDT 90 ML': {
+            saida: ['Damasco', 'Flor de Laranjeira', 'Pêssego'],
+            coracao: ['Tuberosa', 'Gardênia', 'Ylang Ylang'],
+            base: ['Sândalo', 'Baunilha', 'Musgo de Carvalho']
+        },
+        'Midnight Fantasy Britney Spears EDP 100 ML': {
+            saida: ['Ameixa', 'Cereja Amarga'],
+            coracao: ['Íris', 'Orquídea', 'Frésia'],
+            base: ['Âmbar', 'Almíscar', 'Baunilha']
+        },
+        'Rose Goldea BVLGARI EDP 90 ML': {
+            saida: ['Romã', 'Rosa', 'Bergamota'],
+            coracao: ['Rosa Damascena', 'Jasmim', 'Peônia'],
+            base: ['Almíscar', 'Sândalo', 'Baunilha']
+        },
+        'Miss Dior Blooming Bouquet EDT 50 ML': {
+            saida: ['Mandarina Siciliana'],
+            coracao: ['Peônia Rosa', 'Rosa Damascena', 'Damasco'],
+            base: ['Almíscar Branco']
+        },
+        'BVLGARI Wood Essence EDP 60 ML': {
+            saida: ['Casca de Laranja', 'Coentro'],
+            coracao: ['Cipreste', 'Vetiver'],
+            base: ['Benjoim', 'Cedro', 'Âmbar Gris']
+        },
+        'Dolce & Gabbana Feminino Tradicional EDT 100 ML': {
+            saida: ['Mandarina', 'Bergamota', 'Lichia'],
+            coracao: ['Lírio', 'Jasmim', 'Ameixa'],
+            base: ['Baunilha', 'Âmbar', 'Almíscar']
+        },
+        'Dolce & Gabbana Light Blue Pour Homme EDT 40 ML': {
+            saida: ['Toranja', 'Bergamota', 'Mandarina Siciliana'],
+            coracao: ['Pimenta', 'Alecrim', 'Jacarandá'],
+            base: ['Almíscar', 'Incenso', 'Musgo de Carvalho']
+        },
+        'Dune Pour Homme DIOR EDT 100 ML': {
+            saida: ['Folha de Figo', 'Cassis', 'Sálvia'],
+            coracao: ['Casca de Figueira', 'Rosa'],
+            base: ['Sândalo', 'Fava Tonka', 'Cedro']
+        },
+        'J\'adore DIOR EDP 50 ML': {
+            saida: ['Pera', 'Melão', 'Magnólia', 'Pêssego'],
+            coracao: ['Jasmim', 'Tuberosa', 'Rosa'],
+            base: ['Almíscar', 'Baunilha', 'Cedro']
+        },
+        'Poison DIOR EDT 50 ML': {
+            saida: ['Ameixa', 'Coentro', 'Anis'],
+            coracao: ['Tuberosa', 'Incenso', 'Mel Branco'],
+            base: ['Baunilha', 'Sândalo', 'Almíscar']
+        },
+        'K de Dolce & Gabbana Pour Homme EDT 100 ML': {
+            saida: ['Laranja Sanguínea', 'Limão Siciliano', 'Zimbro'],
+            coracao: ['Pimentão', 'Sálvia', 'Lavanda'],
+            base: ['Cedro', 'Vetiver', 'Patchouli']
+        },
+        'All of Me de Narciso Rodriguez EDP 50 ML': {
+            saida: ['Magnólia'],
+            coracao: ['Rosa', 'Gerânio Bourbon'],
+            base: ['Almíscar', 'Sândalo']
+        },
+        'Narciso Poudrée EDP 50 ML': {
+            saida: ['Rosa Búlgara', 'Jasmim', 'Flor de Laranjeira'],
+            coracao: ['Almíscar'],
+            base: ['Vetiver', 'Cedro', 'Patchouli']
+        },
+        'Girl of Now Elie Saab EDP 50 ML': {
+            saida: ['Pistache', 'Pera', 'Mandarina'],
+            coracao: ['Amêndoa', 'Flor de Laranjeira', 'Magnólia'],
+            base: ['Leite de Amêndoas', 'Fava Tonka', 'Patchouli']
+        },
+        'Omnia Crystalline BVLGARI EDT 50 ML': {
+            saida: ['Bambu', 'Pera'],
+            coracao: ['Lótus', 'Chá', 'Cassis'],
+            base: ['Madeira Guaiac', 'Musgo de Carvalho', 'Almíscar']
+        },
+        'Au Thé Blanc BVLGARI EDC 75 ML': {
+            saida: ['Chá Branco', 'Artemísia', 'Bergamota'],
+            coracao: ['Pimenta', 'Cardamomo', 'Coentro'],
+            base: ['Almíscar', 'Âmbar', 'Notas Amadeiradas']
+        },
+        'Fahrenheit DIOR EDT 50 ML': {
+            saida: ['Lavanda', 'Mandarina', 'Noz-moscada'],
+            coracao: ['Folha de Violeta', 'Cravo', 'Madressilva'],
+            base: ['Couro', 'Vetiver', 'Patchouli']
+        },
+        'Sauvage DIOR Parfum 100 ML': {
+            saida: ['Bergamota', 'Mandarina', 'Elemi'],
+            coracao: ['Sândalo'],
+            base: ['Fava Tonka', 'Incenso', 'Baunilha']
+        },
+        'Sauvage DIOR EDT 60 ML': {
+            saida: ['Pimenta', 'Bergamota da Calábria'],
+            coracao: ['Gerânio', 'Lavanda', 'Pimenta de Szechuan'],
+            base: ['Cedro', 'Ambroxan', 'Ládano']
+        },
+        'Narciso Rodriguez For Her EDT 100 ML': {
+            saida: ['Osmanthus', 'Flor de Laranjeira', 'Bergamota'],
+            coracao: ['Almíscar', 'Âmbar'],
+            base: ['Vetiver', 'Baunilha', 'Patchouli']
+        },
+        'L\'eau D\'issey Pour Homme EDT 125 ML': {
+            saida: ['Yuzu', 'Limão', 'Estragão'],
+            coracao: ['Noz-moscada', 'Lótus', 'Canela'],
+            base: ['Sândalo', 'Cedro', 'Vetiver']
+        },
+        'Devotion de Dolce & Gabbana Feminino EDP 50 ML': {
+            saida: ['Limão Confitado'],
+            coracao: ['Flor de Laranjeira', 'Panna Cotta'],
+            base: ['Baunilha']
+        },
+        'Elie Saab Le Parfum Lumière EDP 50 ML': {
+            saida: ['Flor de Laranjeira', 'Mandarina', 'Ylang Ylang'],
+            coracao: ['Jasmim Sambac', 'Gardênia', 'Tuberosa'],
+            base: ['Patchouli', 'Âmbar', 'Almíscar']
+        },
+        'BVLGARI Rain Essence EDP 60 ML': {
+            saida: ['Chá Verde', 'Laranja'],
+            coracao: ['Lótus Branco', 'Almíscar'],
+            base: ['Âmbar Mineral', 'Madeira Guaiac']
+        },
+        // PERFUMES QUE JÁ ESTAVAM NO CÓDIGO ANTERIOR
+        'Dior Addict EDP 30 ML': {
+            saida: ['Flor de Laranjeira', 'Folha de Amoreira'],
+            coracao: ['Jasmim Sambac', 'Rosa Búlgara'],
+            base: ['Baunilha Bourbon', 'Sândalo']
+        },
+        'Dolce & Gabbana Light Blue Feminino EDT 50 ML': {
+            saida: ['Limão Siciliano', 'Maçã Granny Smith', 'Câmpanula'],
+            coracao: ['Bambu', 'Jasmim', 'Rosa Branca'],
+            base: ['Cedro', 'Âmbar', 'Almíscar']
+        },
+        'Miss Dior Parfum 50 ML': {
+            saida: ['Mandarina', 'Bergamota'],
+            coracao: ['Rosa de Grasse', 'Jasmim'],
+            base: ['Patchouli', 'Almíscar']
+        },
+        'Fusion D’issey Extrême EDT 50 ML': {
+            saida: ['Cardamomo', 'Bergamota'],
+            coracao: ['Menta', 'Lava', 'Coco'],
+            base: ['Sândalo', 'Patchouli']
+        },
+        'Invictus': {
+            saida: ['Toranja', 'Água Marinha', 'Cardamomo'],
+            coracao: ['Folha de Amora', 'Ámbar'],
+            base: ['Âmbar Gris', 'Baunilha', 'Musk']
+        },
+        'Aqua di Gio Profondo': {
+            saida: ['Bergamota', 'Mandarina', 'Néroli'],
+            coracao: ['Alecrim Marinho', 'Violeta', 'Pimenta Rosa'],
+            base: ['Patchouli', 'Incenso', 'Musk']
+        }
     };
-    return notasBase[perfumeName] || {
+
+    if (notasBase[perfumeName]) {
+        return notasBase[perfumeName];
+    }
+    
+    // Se não achar, retorna o padrão
+    return {
       saida: ['Nota Cítrica', 'Nota Frutal'],
       coracao: ['Nota Floral', 'Nota Especiada'],
       base: ['Nota Amadeirada', 'Nota Musk']
     };
   };
+  //
+  // --- FIM DA SEÇÃO DE NOTAS ---
+  //
 
   // Verificar se o perfume é favorito
   const checkFavorite = async () => {
@@ -228,21 +430,16 @@ export default function PerfumeDetailScreen() {
     );
   }
 
-  // ===== CORREÇÃO DE LÓGICA DA URL DA IMAGEM =====
+  // Lógica da URL da imagem
   let imageUrl: string | null = null;
   if (perfume.image && typeof perfume.image === 'string') {
-    // A API retorna a URL completa (ex: http://127.0.0.1:8000/media/...)
     if (Platform.OS === 'web') {
-      // Na WEB (localhost), 127.0.0.1 funciona.
       imageUrl = perfume.image;
     } else {
-      // No MOBILE (Expo Go), 127.0.0.1 NÃO funciona.
-      // Precisamos substituir pelo IP da rede (o mesmo do seu api.js)
-      // Substitua '192.168.0.101' pelo seu IP de rede se for diferente.
+      // *** MUDE ESSE IP SE O SEU FOR DIFERENTE ***
       imageUrl = perfume.image.replace('127.0.0.1', '192.168.0.101'); 
     }
   }
-  // =============================================
 
   return (
     <SafeAreaView style={styles.container}>
@@ -252,7 +449,6 @@ export default function PerfumeDetailScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {/* Imagem do Perfume (com verificação) */}
         <Animated.View 
           style={[
             styles.imageContainer,
@@ -276,7 +472,6 @@ export default function PerfumeDetailScreen() {
           <View style={styles.imageOverlay} />
         </Animated.View>
 
-        {/* Conteúdo Principal */}
         <Animated.View 
           style={[
             styles.contentContainer,
@@ -286,10 +481,8 @@ export default function PerfumeDetailScreen() {
             }
           ]}
         >
-          {/* Header Info */}
           <View style={styles.headerInfo}>
-            <View>
-              <Text style={styles.brand}>{perfume.brand ?? 'Marca'}</Text>
+            <View style={{ flexShrink: 1, marginRight: 10 }}>
               <Text style={styles.name}>{perfume.name}</Text>
             </View>
             <View style={styles.ratingContainer}>
@@ -298,19 +491,16 @@ export default function PerfumeDetailScreen() {
             </View>
           </View>
 
-          {/* Preço */}
           <View style={styles.priceContainer}>
             <Text style={styles.price}>R$ {perfume.price}</Text>
             <Text style={styles.priceLabel}>Preço à vista</Text>
           </View>
 
-          {/* Descrição */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Descrição</Text>
             <Text style={styles.description}>{perfume.description}</Text>
           </View>
 
-          {/* Notas Olfativas */}
           {notasOlfativas && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Pirâmide Olfativa</Text>
@@ -334,7 +524,6 @@ export default function PerfumeDetailScreen() {
             </View>
           )}
 
-          {/* Características */}
           <View style={styles.featuresGrid}>
             <View style={styles.featureItem}>
               <Ionicons name="time-outline" size={20} color={CORES.dourado} />
@@ -352,7 +541,6 @@ export default function PerfumeDetailScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* Botão Fixo */}
       <Animated.View 
         style={[
           styles.footer,
@@ -442,14 +630,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 20,
-  },
-  brand: {
-    fontSize: 14,
-    color: CORES.dourado,
-    fontWeight: '600',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
   },
   name: {
     fontSize: 28,

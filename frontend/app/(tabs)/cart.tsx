@@ -125,33 +125,26 @@ export default function CartScreen() {
     );
   };
 
-  const handleCheckout = async () => {
+  //
+  // --- CORREÇÃO FEITA AQUI ---
+  //
+  const handleCheckout = () => {
     if (!cart || cart.items.length === 0) {
       Alert.alert("Carrinho Vazio", "Seu carrinho está vazio.");
       return;
     }
 
-    try {
-      const response = await api.post('/checkout/', {
-        shipping_address: "Endereço do usuário",
-        payment_method: "Cartão de Crédito"
-      });
-
-      Alert.alert(
-        "🎉 Pedido Realizado!",
-        `Seu pedido #${response.data.order_id} foi criado com sucesso.`,
-        [{ text: 'OK', onPress: () => fetchCart() }]
-      );
-    } catch (error) {
-      console.error("Erro ao finalizar a compra:", error);
-      Alert.alert("Erro", "Não foi possível finalizar a compra.");
-    }
+    // Ação correta: Navegar para a tela de checkout
+    router.push('/checkout');
   };
+  //
+  // --- FIM DA CORREÇÃO ---
+  //
 
   const CartItemComponent = ({ item }: { item: CartItem }) => (
     <Animated.View style={styles.itemContainer}>
       <Image 
-        source={{ uri: item.perfume.image.replace('127.0.0.1', '192.168.0.101') }}
+        source={{ uri: item.perfume.image.replace('127.0.0.1', '192.168.0.101') }} // Lembre-se de mudar o IP se o seu PC mudar
         style={styles.itemImage}
       />
       

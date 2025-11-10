@@ -7,7 +7,7 @@ import api from '../../src/services/api';
 
 const { width } = Dimensions.get('window');
 
-// Paleta de cores sofisticada
+// Paleta de cores (sem alteração)
 const CORES = {
   fundo: '#000000',
   fundoCard: '#0A0A0A',
@@ -23,19 +23,10 @@ const CORES = {
   botaoTexto: '#000000',
 };
 
-// Tipagens
-interface Order {
-  id: number;
-  total_amount: string;
-  status: string;
-  created_at: string;
-  items_count: number;
-}
-
+// Tipagens (removida a interface de Order)
 interface Perfume {
   id: number;
   name: string;
-  brand: string;
   price: string;
   image: string;
 }
@@ -45,7 +36,7 @@ interface Favorite {
   perfume: Perfume;
 }
 
-// Componente de Item do Menu
+// Componente de Item do Menu (sem alteração)
 const MenuItem = ({ icon, title, subtitle, onPress, isLast = false }: any) => (
   <Pressable 
     style={[styles.menuItem, isLast && styles.menuItemLast]} 
@@ -64,16 +55,11 @@ const MenuItem = ({ icon, title, subtitle, onPress, isLast = false }: any) => (
   </Pressable>
 );
 
-// Componente da Aba Perfil
-const PerfilTab = ({ user, ordersCount, favoritesCount, onSignOut }: any) => (
+// Componente da Aba Perfil (modificado para não mostrar mais os pedidos)
+const PerfilTab = ({ user, favoritesCount, onSignOut, router }: any) => (
   <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
     {/* Estatísticas */}
     <View style={styles.statsContainer}>
-      <View style={styles.statItem}>
-        <Text style={styles.statNumber}>{ordersCount}</Text>
-        <Text style={styles.statLabel}>Pedidos</Text>
-      </View>
-      <View style={styles.statDivider} />
       <View style={styles.statItem}>
         <Text style={styles.statNumber}>{favoritesCount}</Text>
         <Text style={styles.statLabel}>Favoritos</Text>
@@ -88,12 +74,14 @@ const PerfilTab = ({ user, ordersCount, favoritesCount, onSignOut }: any) => (
         icon={<Ionicons name="person-outline" size={22} color={CORES.dourado} />}
         title="Meus Dados"
         subtitle="Gerencie suas informações"
+        onPress={() => router.push('/user-data')}
       />
       
       <MenuItem
         icon={<Ionicons name="location-outline" size={22} color={CORES.dourado} />}
         title="Endereços"
         subtitle="Gerencie seus endereços"
+        onPress={() => router.push('/address')}
         isLast={true}
       />
     </View>
@@ -115,46 +103,9 @@ const PerfilTab = ({ user, ordersCount, favoritesCount, onSignOut }: any) => (
   </ScrollView>
 );
 
-// Componente da Aba Pedidos
-const PedidosTab = ({ orders }: any) => (
-  <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
-    {orders.length === 0 ? (
-      <View style={styles.emptyState}>
-        <Ionicons name="cube-outline" size={64} color={CORES.dourado} />
-        <Text style={styles.emptyStateTitle}>Nenhum pedido encontrado</Text>
-        <Text style={styles.emptyStateText}>Suas compras aparecerão aqui</Text>
-      </View>
-    ) : (
-      orders.map((order: Order) => (
-        <View key={order.id} style={styles.orderItem}>
-          <View style={styles.orderHeader}>
-            <Text style={styles.orderId}>Pedido #{order.id}</Text>
-            <Text style={[
-              styles.orderStatus,
-              order.status === 'completed' && styles.orderStatusCompleted,
-              order.status === 'pending' && styles.orderStatusPending
-            ]}>
-              {order.status === 'completed' ? 'Entregue' : 
-               order.status === 'pending' ? 'Pendente' : 
-               order.status === 'processing' ? 'Processando' : 'Cancelado'}
-            </Text>
-          </View>
-          <Text style={styles.orderDate}>
-            {new Date(order.created_at).toLocaleDateString('pt-BR')}
-          </Text>
-          <Text style={styles.orderAmount}>
-            R$ {parseFloat(order.total_amount).toFixed(2)}
-          </Text>
-          <Text style={styles.orderItems}>
-            {order.items_count} {order.items_count === 1 ? 'item' : 'itens'}
-          </Text>
-        </View>
-      ))
-    )}
-  </ScrollView>
-);
+// Componente da Aba Pedidos (REMOVIDO)
 
-// Componente da Aba Favoritos
+// Componente da Aba Favoritos (modificado para não usar mais 'brand')
 const FavoritosTab = ({ favorites, router, onRefresh }: any) => {
   const [refreshing, setRefreshing] = useState(false);
 
@@ -169,17 +120,14 @@ const FavoritosTab = ({ favorites, router, onRefresh }: any) => {
       "Remover Favorito",
       "Tem certeza que deseja remover este perfume dos favoritos?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
+        { text: "Cancelar", style: "cancel" },
         { 
           text: "Remover", 
           style: "destructive",
           onPress: async () => {
             try {
-              await api.post('/favorites/remove/', { perfume_id: perfumeId });
-              // Atualiza a lista automaticamente
+              // Ajustado para usar o ID do perfume, não do favorito
+              await api.post('/favorites/toggle/', { perfume_id: perfumeId });
               await onRefresh();
             } catch (error) {
               console.error('Erro ao remover favorito:', error);
@@ -226,7 +174,6 @@ const FavoritosTab = ({ favorites, router, onRefresh }: any) => {
             />
             <View style={styles.favoriteDetails}>
               <Text style={styles.favoriteName}>{favorite.perfume.name}</Text>
-              <Text style={styles.favoriteBrand}>{favorite.perfume.brand}</Text>
               <Text style={styles.favoritePrice}>R$ {favorite.perfume.price}</Text>
             </View>
             <Pressable 
@@ -242,7 +189,7 @@ const FavoritosTab = ({ favorites, router, onRefresh }: any) => {
   );
 };
 
-// Componente da Aba Carrinho
+// Componente da Aba Carrinho (sem alteração)
 const CarrinhoTab = ({ cartItemsCount, router }: any) => (
   <ScrollView style={styles.tabScrollView} showsVerticalScrollIndicator={false}>
     {cartItemsCount === 0 ? (
@@ -275,12 +222,12 @@ export default function ProfileScreen() {
   const { signed, user, signOut } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('perfil');
-  const [orders, setOrders] = useState<Order[]>([]);
+  // const [orders, setOrders] = useState<Order[]>([]); // <-- REMOVIDO
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Função para buscar dados do usuário
+  // Função para buscar dados do usuário (sem a busca de pedidos)
   const fetchUserData = async () => {
     if (!signed) {
       setLoading(false);
@@ -290,15 +237,6 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
       
-      // Buscar pedidos
-      try {
-        const ordersResponse = await api.get('/orders/');
-        setOrders(ordersResponse.data);
-      } catch (error) {
-        console.error('Erro ao buscar pedidos:', error);
-        setOrders([]);
-      }
-
       // Buscar favoritos
       await fetchFavorites();
 
@@ -318,7 +256,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // Função específica para buscar favoritos
+  // Função específica para buscar favoritos (sem alteração)
   const fetchFavorites = async () => {
     if (!signed) return;
     
@@ -331,14 +269,13 @@ export default function ProfileScreen() {
     }
   };
 
-  // Atualizar dados quando a tela receber foco
+  // Hooks (sem alteração)
   useFocusEffect(
     useCallback(() => {
       fetchUserData();
     }, [signed])
   );
 
-  // Atualizar dados quando mudar de aba
   useEffect(() => {
     if (signed && activeTab === 'favoritos') {
       fetchFavorites();
@@ -354,32 +291,23 @@ export default function ProfileScreen() {
       "Sair da Conta",
       "Tem certeza que deseja sair?",
       [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        { 
-          text: "Sair", 
-          onPress: signOut,
-          style: "destructive"
-        }
+        { text: "Cancelar", style: "cancel" },
+        { text: "Sair", onPress: signOut, style: "destructive" }
       ]
     );
   };
 
-  // Função para obter o nome de exibição
+  // Funções de UI (sem alteração)
   const getDisplayName = () => {
     if (!user) return 'Usuário';
     return user.name || user.username || 'Usuário';
   };
 
-  // Função para obter a primeira letra do avatar
   const getAvatarLetter = () => {
-    const letter = getDisplayName().charAt(0).toUpperCase();
-    return letter;
+    return getDisplayName().charAt(0).toUpperCase();
   };
 
-  // Componente de Aba
+  // Componente de Aba (sem alteração)
   const TabButton = ({ tabName, icon, label, count }: any) => (
     <Pressable 
       style={[
@@ -407,13 +335,11 @@ export default function ProfileScreen() {
     </Pressable>
   );
 
-  // Conteúdo das Abas
+  // Conteúdo das Abas (sem a aba de pedidos)
   const renderTabContent = () => {
     switch (activeTab) {
       case 'perfil':
-        return <PerfilTab user={user} ordersCount={orders.length} favoritesCount={favorites.length} onSignOut={handleSignOut} />;
-      case 'pedidos':
-        return <PedidosTab orders={orders} />;
+        return <PerfilTab user={user} favoritesCount={favorites.length} onSignOut={handleSignOut} router={router} />;
       case 'favoritos':
         return <FavoritosTab 
           favorites={favorites} 
@@ -423,17 +349,17 @@ export default function ProfileScreen() {
       case 'carrinho':
         return <CarrinhoTab cartItemsCount={cartItemsCount} router={router} />;
       default:
-        return <PerfilTab user={user} ordersCount={orders.length} favoritesCount={favorites.length} onSignOut={handleSignOut} />;
+        return <PerfilTab user={user} favoritesCount={favorites.length} onSignOut={handleSignOut} router={router} />;
     }
   };
 
+  // Renderização para usuário não logado (sem alteração)
   if (!signed) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
         
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatarPlaceholder}>
@@ -444,7 +370,6 @@ export default function ProfileScreen() {
             <Text style={styles.welcomeSubtitle}>Faça login para acessar sua conta</Text>
           </View>
 
-          {/* Botão de Login */}
           <Pressable 
             style={styles.loginButton}
             onPress={handleLoginPress}
@@ -453,20 +378,16 @@ export default function ProfileScreen() {
             <Text style={styles.loginButtonText}>FAZER LOGIN</Text>
           </Pressable>
 
-          {/* Benefícios */}
           <View style={styles.benefitsSection}>
             <Text style={styles.sectionTitle}>Vantagens de ter uma conta</Text>
-            
             <View style={styles.benefitItem}>
               <Ionicons name="cart-outline" size={20} color={CORES.dourado} />
               <Text style={styles.benefitText}>Acompanhe seus pedidos</Text>
             </View>
-            
             <View style={styles.benefitItem}>
               <Ionicons name="heart-outline" size={20} color={CORES.dourado} />
               <Text style={styles.benefitText}>Salve seus favoritos</Text>
             </View>
-            
             <View style={styles.benefitItem}>
               <Ionicons name="checkmark-circle-outline" size={20} color={CORES.dourado} />
               <Text style={styles.benefitText}>Finalize a compra</Text>
@@ -477,12 +398,11 @@ export default function ProfileScreen() {
     );
   }
 
-  // Usuário logado
+  // Renderização para usuário logado (sem a aba de pedidos)
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
       
-      {/* Header do Perfil */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
@@ -494,27 +414,19 @@ export default function ProfileScreen() {
             <Ionicons name="checkmark-circle" size={20} color={CORES.dourado} />
           </View>
         </View>
-        
         <Text style={styles.userName}>{getDisplayName()}</Text>
-        
         <View style={styles.memberSince}>
           <Ionicons name="calendar-outline" size={14} color={CORES.textoSecundario} />
           <Text style={styles.memberSinceText}>Membro desde 2024</Text>
         </View>
       </View>
 
-      {/* Navegação por Abas */}
+      {/* Navegação por Abas (sem a aba de pedidos) */}
       <View style={styles.tabContainer}>
         <TabButton 
           tabName="perfil" 
           icon="person" 
           label="Perfil" 
-        />
-        <TabButton 
-          tabName="pedidos" 
-          icon="cube" 
-          label="Pedidos" 
-          count={orders.length}
         />
         <TabButton 
           tabName="favoritos" 
@@ -530,7 +442,6 @@ export default function ProfileScreen() {
         />
       </View>
 
-      {/* Conteúdo da Aba Selecionada */}
       <View style={styles.tabContent}>
         {renderTabContent()}
       </View>
@@ -538,6 +449,7 @@ export default function ProfileScreen() {
   );
 }
 
+// Estilos (sem alteração, exceto pela remoção dos estilos de 'order')
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -663,7 +575,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: CORES.textoSecundario,
   },
-  // Navegação por Abas
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: CORES.fundoCard,
@@ -692,13 +603,14 @@ const styles = StyleSheet.create({
   tabBadge: {
     position: 'absolute',
     top: 12,
-    right: 20,
+    right: '25%', 
     backgroundColor: CORES.dourado,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 5,
   },
   tabBadgeText: {
     color: CORES.fundo,
@@ -711,7 +623,6 @@ const styles = StyleSheet.create({
   tabScrollView: {
     flex: 1,
   },
-  // Estatísticas
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: CORES.card,
@@ -720,6 +631,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: CORES.borda,
     paddingVertical: 20,
+    justifyContent: 'center',
   },
   statItem: {
     flex: 1,
@@ -737,11 +649,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: CORES.borda,
-  },
-  // Menu
   menuSection: {
     backgroundColor: CORES.card,
     marginHorizontal: 20,
@@ -786,7 +693,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: CORES.textoSecundario,
   },
-  // Estados Vazios
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -804,60 +710,6 @@ const styles = StyleSheet.create({
     color: CORES.textoSecundario,
     textAlign: 'center',
   },
-  // Pedidos
-  orderItem: {
-    backgroundColor: CORES.card,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: CORES.borda,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  orderId: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: CORES.textoPrincipal,
-  },
-  orderStatus: {
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    color: CORES.dourado,
-  },
-  orderStatusCompleted: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    color: CORES.sucesso,
-  },
-  orderStatusPending: {
-    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-    color: '#FFC107',
-  },
-  orderDate: {
-    fontSize: 14,
-    color: CORES.textoSecundario,
-    marginBottom: 4,
-  },
-  orderAmount: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: CORES.dourado,
-    marginBottom: 4,
-  },
-  orderItems: {
-    fontSize: 12,
-    color: CORES.textoSecundario,
-  },
-  // Favoritos
   favoriteItem: {
     backgroundColor: CORES.card,
     marginHorizontal: 20,
@@ -884,11 +736,6 @@ const styles = StyleSheet.create({
     color: CORES.textoPrincipal,
     marginBottom: 2,
   },
-  favoriteBrand: {
-    fontSize: 12,
-    color: CORES.textoSecundario,
-    marginBottom: 4,
-  },
   favoritePrice: {
     fontSize: 14,
     fontWeight: '700',
@@ -897,7 +744,6 @@ const styles = StyleSheet.create({
   removeFavoriteButton: {
     padding: 8,
   },
-  // Carrinho
   cartSummary: {
     backgroundColor: CORES.card,
     margin: 20,
@@ -937,7 +783,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  // Botão Sair
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Perfume, Cart, CartItem, Order, Favorite
+# --- CÓDIGO MODIFICADO ---
+from .models import Perfume, Cart, CartItem, Order, Favorite, Address
+# --- FIM DA MODIFICAÇÃO ---
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
 class PerfumeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Perfume
-        fields = '__all__'
+        fields = '__all__' 
 
 class CartItemSerializer(serializers.ModelSerializer):
     perfume = PerfumeSerializer(read_only=True)
@@ -75,3 +77,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
         fields = ['id', 'perfume', 'created_at']
+
+# --- CÓDIGO ADICIONADO ---
+# Serializador para o modelo de Endereço
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = '__all__'
+        read_only_fields = ['user'] # O usuário será pego automaticamente do request
+# --- FIM DO CÓDIGO ADICIONADO ---
