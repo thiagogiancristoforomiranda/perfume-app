@@ -412,9 +412,11 @@ export default function PerfumeDetailScreen() {
                 </Animated.View>
               )}
             </Pressable>
-            <Pressable style={styles.shareButton}>
+            {/* --- ALTERAÇÃO: Removendo o botão de Compartilhar --- */}
+            {/* <Pressable style={styles.shareButton}>
               <Ionicons name="share-social-outline" size={24} color={CORES.textoPrincipal} />
-            </Pressable>
+            </Pressable> */}
+            {/* --- FIM DA ALTERAÇÃO --- */}
           </Animated.View>
         ),
       });
@@ -605,7 +607,6 @@ export default function PerfumeDetailScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* --- ALTERAÇÃO NO FOOTER --- */}
       <Animated.View 
         style={[
           styles.footer,
@@ -616,9 +617,6 @@ export default function PerfumeDetailScreen() {
         ]}
       >
         <View style={styles.footerContent}>
-          
-          {/* O botão de "Favoritar" foi removido daqui */}
-          
           <Pressable 
             style={({ pressed }) => [
               styles.cartButton,
@@ -636,7 +634,6 @@ export default function PerfumeDetailScreen() {
           </Pressable>
         </View>
       </Animated.View>
-      {/* --- FIM DA ALTERAÇÃO --- */}
     </View>
   );
 }
@@ -920,21 +917,21 @@ const styles = StyleSheet.create({
   footerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    // justifyContent: 'center', // Removido pois o botão de carrinho agora ocupará todo o espaço
     gap: 15,
   },
-  wishlistButton: { // Este estilo não será mais usado, mas o mantive para referência
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: CORES.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: CORES.borda,
-  },
+  // O estilo wishlistButton não é mais usado após a remoção do botão de favoritos do rodapé
+  // wishlistButton: { 
+  //   width: 50,
+  //   height: 50,
+  //   borderRadius: 25,
+  //   backgroundColor: CORES.card,
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  //   borderWidth: 1,
+  //   borderColor: CORES.borda,
+  // },
   cartButton: {
-    flex: 1, // Faz o botão de carrinho ocupar todo o espaço disponível
+    flex: 1,
     backgroundColor: CORES.dourado,
     borderRadius: 25,
     overflow: 'hidden',
@@ -946,7 +943,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 20, // Aumentado o padding para o texto
+    paddingHorizontal: 20,
     paddingVertical: 18,
     flex: 1,
   },
@@ -989,14 +986,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shareButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // O estilo shareButton não é mais usado após a remoção do botão de compartilhamento do cabeçalho
+  // shareButton: {
+  //   width: 40,
+  //   height: 40,
+  //   borderRadius: 20,
+  //   backgroundColor: 'rgba(0,0,0,0.5)',
+  //   justifyContent: 'center',
+  //   alignItems: 'center',
+  // },
   buttonPressed: {
     transform: [{ scale: 0.95 }],
     opacity: 0.8,
