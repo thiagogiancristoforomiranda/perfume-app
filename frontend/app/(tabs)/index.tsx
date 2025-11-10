@@ -3,19 +3,22 @@ import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, Text, View, FlatList, SafeAreaView,
     ActivityIndicator, Alert, Pressable, StatusBar, Image,
-    Animated, Easing, TextInput
+    Animated, Easing, TextInput, Dimensions, Platform // Adicionado Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../../src/services/api';
+import api, { API_URL } from '../../src/services/api'; // Importar API_URL
 
+// --- CORREÇÃO 1: Interface ---
+// 'brand' removido, 'image_url' corrigido para 'image'
 interface Perfume {
   id: number;
   name?: string;
-  brand?: string;
   price: string;
+  image?: string | null; 
 }
+// --- FIM DA CORREÇÃO ---
 
-// Paleta de cores sofisticada dourado e preto
+// Paleta de cores
 const CORES = {
   fundo: '#000000',
   fundoCard: '#0A0A0A',
@@ -29,6 +32,11 @@ const CORES = {
   borda: '#2A2A2A',
 };
 
+const { width: screenWidth } = Dimensions.get('window');
+
+// URL do seu backend no Render
+const BACKEND_URL = 'https://perfume-app-backend-kc2d.onrender.com';
+
 export default function HomeScreen() {
   const [perfumes, setPerfumes] = useState<Perfume[]>([]);
   const [perfumesFiltrados, setPerfumesFiltrados] = useState<Perfume[]>([]);
@@ -40,32 +48,25 @@ export default function HomeScreen() {
   const searchAnim = useState(new Animated.Value(0))[0];
   const router = useRouter();
 
-  // Função para buscar os dados (CORRIGIDA)
+  // Função para buscar os dados
   async function fetchPerfumes() {
     try {
-      setLoading(true); // Garantir que o loading aparece ao recarregar
-      
-      // 👇 ===== CORREÇÃO DA BARRA "/" ===== 👇
+      setLoading(true);
       const response = await api.get('/perfumes/');
-      // ======================================
-      
       setPerfumes(response.data);
       setPerfumesFiltrados(response.data);
     } catch (error) {
       console.error('Erro ao buscar perfumes:', error);
       Alert.alert('Erro', 'Não foi possível carregar os perfumes.');
-      
-      // 👇 ===== ADICIONADO PARA PARAR O LOADING EM CASO DE ERRO ===== 👇
-      setPerfumes([]); // Limpa a lista em caso de erro
-      setPerfumesFiltrados([]); // Limpa a lista filtrada
-      // =============================================================
-
+      setPerfumes([]);
+      setPerfumesFiltrados([]);
     } finally {
-      setLoading(false); // Garante que o loading pare
+      setLoading(false);
     }
   }
 
-  // Função de pesquisa
+  // --- CORREÇÃO 2: Pesquisa ---
+  // Removida a lógica de busca pelo 'brand'
   const handlePesquisa = (texto: string) => {
     setPesquisa(texto);
     
@@ -73,17 +74,16 @@ export default function HomeScreen() {
       setPerfumesFiltrados(perfumes);
     } else {
       const filtrado = perfumes.filter(perfume => 
-        perfume.name?.toLowerCase().includes(texto.toLowerCase()) ||
-        perfume.brand?.toLowerCase().includes(texto.toLowerCase())
+        perfume.name?.toLowerCase().includes(texto.toLowerCase())
       );
       setPerfumesFiltrados(filtrado);
     }
   };
+  // --- FIM DA CORREÇÃO ---
 
   // Alternar modo pesquisa
   const togglePesquisa = () => {
     if (modoPesquisa) {
-      // Fechar pesquisa
       setPesquisa('');
       setPerfumesFiltrados(perfumes);
       Animated.timing(searchAnim, {
@@ -92,7 +92,6 @@ export default function HomeScreen() {
         useNativeDriver: false,
       }).start(() => setModoPesquisa(false));
     } else {
-      // Abrir pesquisa
       setModoPesquisa(true);
       Animated.timing(searchAnim, {
         toValue: 1,
@@ -127,9 +126,10 @@ export default function HomeScreen() {
     router.push('/profile');
   };
 
-  // Componente de card de perfume com animação
+  // --- CORREÇÃO 3: Componente do Card ---
   const PerfumeCard = ({ item, index }: { item: Perfume; index: number }) => {
     const [scaleValue] = useState(new Animated.Value(1));
+    const [imageError, setImageError] = useState(false);
     
     const handlePressIn = () => {
       Animated.spring(scaleValue, {
@@ -144,6 +144,26 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }).start();
     };
+
+    let imageUrl: string | null = null;
+    
+    if (item.image && !imageError) {
+      if (Platform.OS === 'web') {
+        // Na web, o backend já envia a URL completa do Render
+        imageUrl = item.image;
+      } else {
+        // No mobile (Expo Go), precisamos trocar o '127.0.0.1' pelo IP da rede
+        // Assumindo que API_URL está definido como 'http://SEU_IP:8000/api'
+        const baseURL = API_URL.replace('/api', ''); 
+        // Se a imagem já for a URL completa do Render, não faz nada
+        if (item.image.startsWith('http')) {
+          imageUrl = item.image;
+        } else {
+          // Se for caminho local (ex: /media/...), constrói a URL local
+          imageUrl = `${baseURL}${item.image}`;
+        }
+      }
+    }
 
     return (
       <Link
@@ -164,26 +184,46 @@ export default function HomeScreen() {
             ]}
           >
             <View style={styles.itemContent}>
-              <View style={styles.itemTextContainer}>
-                <Text style={styles.itemName}>{item.name ?? 'Perfume Exclusivo'}</Text>
-                
-                {/* Rating stars */}
-                <View style={styles.ratingContainer}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Ionicons 
-                      key={star} 
-                      name="star" 
-                      size={14} 
-                      color={CORES.dourado} 
-                    />
-                  ))}
-                </View>
+              <View style={styles.imageContainer}>
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.perfumeImage}
+                    onError={() => setImageError(true)}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="flower-outline" size={32} color={CORES.dourado} />
+                  </View>
+                )}
               </View>
-              
-              <View style={styles.priceContainer}>
-                <Text style={styles.itemPrice}>R$ {item.price}</Text>
-                <View style={styles.buyButton}>
-                  <Ionicons name="arrow-forward" size={16} color={CORES.fundo} />
+
+              <View style={styles.itemDetails}>
+                <View style={styles.itemTextContainer}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {item.name ?? 'Perfume Exclusivo'}
+                  </Text>
+                  
+                  {/* Bloco 'brand' removido daqui */}
+                  
+                  <View style={styles.ratingContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Ionicons 
+                        key={star} 
+                        name="star" 
+                        size={14} 
+                        color={CORES.dourado} 
+                      />
+                    ))}
+                  </View>
+                </View>
+                
+                <View style={styles.priceContainer}>
+                  <Text style={styles.itemPrice}>R$ {item.price}</Text>
+                  <View style={styles.buyButton}>
+                    <Ionicons name="arrow-forward" size={16} color={CORES.fundo} />
+                  </View>
                 </View>
               </View>
             </View>
@@ -192,8 +232,9 @@ export default function HomeScreen() {
       </Link>
     );
   };
+  // --- FIM DA CORREÇÃO ---
 
-  // Largura animada do campo de pesquisa
+  // O resto do seu arquivo continua igual...
   const searchWidth = searchAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '70%'],
@@ -203,7 +244,6 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
 
-      {/* Header Moderno */}
       <Animated.View 
         style={[
           styles.headerContainer,
@@ -218,14 +258,19 @@ export default function HomeScreen() {
       >
         <View style={styles.headerContent}>
           {!modoPesquisa && (
-            <Image
-              source={require('../../assets/images/logo.png')}
-              style={styles.logo}
-            />
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/images/logo.png')}
+                style={styles.logo}
+              />
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>Perfumaria</Text>
+                <Text style={styles.subtitleMain}>LEDO</Text>
+              </View>
+            </View>
           )}
           
           <View style={styles.headerIcons}>
-            {/* Campo de Pesquisa Animado */}
             <Animated.View style={[styles.searchContainer, { width: searchWidth }]}>
               {modoPesquisa && (
                 <TextInput
@@ -240,7 +285,6 @@ export default function HomeScreen() {
               )}
             </Animated.View>
 
-            {/* Botão de Pesquisa */}
             <Pressable 
               style={[
                 styles.iconButton, 
@@ -255,7 +299,6 @@ export default function HomeScreen() {
               />
             </Pressable>
 
-            {/* Botão do Perfil */}
             {!modoPesquisa && (
               <Pressable 
                 style={styles.iconButton} 
@@ -267,13 +310,11 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        {/* Subtítulo elegante - esconder durante pesquisa */}
         {!modoPesquisa && (
-          <Text style={styles.subtitle}>Perfumaria Ledo - desde 1950</Text>
+          <Text style={styles.legacyText}>desde 1950</Text>
         )}
       </Animated.View>
 
-      {/* Indicador de pesquisa ativa */}
       {modoPesquisa && pesquisa !== '' && (
         <View style={styles.searchInfo}>
           <Text style={styles.searchInfoText}>
@@ -282,7 +323,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Conteúdo Principal */}
       <Animated.View 
         style={[
           styles.content,
@@ -336,31 +376,50 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  // Header Estilizado
   headerContainer: {
     backgroundColor: CORES.fundoCard,
     borderBottomWidth: 1,
     borderBottomColor: CORES.borda,
-    paddingVertical: 20,
+    paddingVertical: 15,
     paddingHorizontal: 20,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   logo: {
-    width: 120,
-    height: 40,
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
+  },
+  titleContainer: {
+    flexDirection: 'column',
+  },
+  title: {
+    color: CORES.textoPrincipal,
+    fontSize: 16,
+    fontWeight: '300',
+    letterSpacing: 1,
+  },
+  subtitleMain: {
+    color: CORES.dourado,
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginTop: -4,
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  // Estilos da Pesquisa
   searchContainer: {
     overflow: 'hidden',
   },
@@ -393,15 +452,14 @@ const styles = StyleSheet.create({
   iconButtonActive: {
     backgroundColor: CORES.dourado,
   },
-  subtitle: {
-    color: CORES.dourado,
-    fontSize: 14,
+  legacyText: {
+    color: CORES.textoSecundario,
+    fontSize: 12,
     letterSpacing: 2,
     textAlign: 'center',
     fontFamily: 'System',
     fontWeight: '300',
   },
-  // Lista e Cards
   listContent: {
     padding: 16,
     paddingBottom: 30,
@@ -410,7 +468,7 @@ const styles = StyleSheet.create({
     backgroundColor: CORES.card,
     borderRadius: 20,
     marginVertical: 8,
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: CORES.borda,
     shadowColor: CORES.dourado,
@@ -421,19 +479,52 @@ const styles = StyleSheet.create({
   },
   itemContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  imageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: CORES.fundoCard,
+  },
+  perfumeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: CORES.fundoCard,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    borderRadius: 12,
+  },
+  itemDetails: {
+    flex: 1,
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
   itemTextContainer: { 
-    flex: 1, 
-    marginRight: 15,
+    flex: 1,
+    marginRight: 10,
   },
   itemName: { 
     fontSize: 18, 
     fontWeight: '700', 
     color: CORES.textoPrincipal, 
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: 0.5,
+  },
+  itemBrand: {
+    fontSize: 14,
+    color: CORES.textoSecundario,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -463,7 +554,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  // Estados de Loading e Vazio
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

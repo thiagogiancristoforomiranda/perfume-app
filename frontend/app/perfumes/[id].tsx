@@ -1,14 +1,15 @@
 // app/perfumes/[id].tsx
-import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Button, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions, Platform } from 'react-native';
+
+import { View, Text, StyleSheet, Image, ActivityIndicator, SafeAreaView, Alert, Pressable, StatusBar, ScrollView, Animated, Dimensions, Platform, Easing } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import api, { API_URL } from '../../src/services/api';
 import { useAuth } from '../../src/context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Paleta de cores sofisticada
 const CORES = {
   fundo: '#000000',
   fundoCard: '#0A0A0A',
@@ -22,7 +23,8 @@ const CORES = {
   botaoTexto: '#000000',
   sucesso: '#4CAF50',
   erro: '#F44336',
-  placeholderImg: '#2C2C2C', 
+  placeholderImg: '#2C2C2C',
+  gradiente: ['#FFD700', '#FFE55C', '#B8860B'],
 };
 
 interface Perfume {
@@ -52,13 +54,22 @@ export default function PerfumeDetailScreen() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const imageScale = useRef(new Animated.Value(1)).current;
+  const parallaxAnim = useRef(new Animated.Value(0)).current;
 
-  //
-  // --- AQUI ESTÃO AS NOTAS DE TODOS OS SEUS PERFUMES ---
-  //
+  const createAnimatedBackground = () => {
+    return {
+      backgroundColor: CORES.fundo,
+      backgroundGradient: {
+        colors: [CORES.fundo, CORES.fundoCard, CORES.fundo],
+        start: { x: 0, y: 0 },
+        end: { x: 1, y: 1 },
+      }
+    };
+  };
+
   const obterNotasOlfativas = (perfumeName: string): NotasOlfativas => {
     const notasBase: { [key: string]: NotasOlfativas } = {
-        // PERFUMES DA SUA LISTA
         'La vie est Belle Lancôme EDP 100 ML': {
             saida: ['Pera', 'Cassis', 'Groselha Preta'],
             coracao: ['Íris', 'Jasmim', 'Flor de Laranjeira'],
@@ -234,7 +245,6 @@ export default function PerfumeDetailScreen() {
             coracao: ['Lótus Branco', 'Almíscar'],
             base: ['Âmbar Mineral', 'Madeira Guaiac']
         },
-        // PERFUMES QUE JÁ ESTAVAM NO CÓDIGO ANTERIOR
         'Dior Addict EDP 30 ML': {
             saida: ['Flor de Laranjeira', 'Folha de Amoreira'],
             coracao: ['Jasmim Sambac', 'Rosa Búlgara'],
@@ -266,23 +276,16 @@ export default function PerfumeDetailScreen() {
             base: ['Patchouli', 'Incenso', 'Musk']
         }
     };
-
     if (notasBase[perfumeName]) {
-        return notasBase[perfumeName];
+      return notasBase[perfumeName];
     }
-    
-    // Se não achar, retorna o padrão
     return {
       saida: ['Nota Cítrica', 'Nota Frutal'],
       coracao: ['Nota Floral', 'Nota Especiada'],
       base: ['Nota Amadeirada', 'Nota Musk']
     };
   };
-  //
-  // --- FIM DA SEÇÃO DE NOTAS ---
-  //
 
-  // Verificar se o perfume é favorito
   const checkFavorite = async () => {
     if (!signed || !perfume) return;
     try {
@@ -293,22 +296,27 @@ export default function PerfumeDetailScreen() {
     }
   };
 
-  // Toggle favorito
   const toggleFavorite = async () => {
     if (!signed) {
-      Alert.alert("Atenção", "Você precisa fazer o login para favoritar perfumes.");
+      Alert.alert("✨ Atenção", "Faça login para adicionar aos seus favoritos!");
       router.push({ pathname: '/login' } as any);
       return;
     }
     if (!perfume) return;
+    
     setFavoriteLoading(true);
+    
+    Animated.sequence([
+      Animated.timing(imageScale, { toValue: 1.3, duration: 150, useNativeDriver: true }),
+      Animated.timing(imageScale, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+
     try {
-      const response = await api.post('/favorites/toggle/', {
-        perfume_id: perfume.id,
-      });
+      const response = await api.post('/favorites/toggle/', { perfume_id: perfume.id });
       setIsFavorite(response.data.is_favorite);
+      
       if (response.data.is_favorite) {
-        Alert.alert("❤️ Adicionado aos favoritos!");
+        Alert.alert("💖 Adicionado aos favoritos!");
       } else {
         Alert.alert("💔 Removido dos favoritos");
       }
@@ -320,7 +328,6 @@ export default function PerfumeDetailScreen() {
     }
   };
 
-  // Busca os dados
   useEffect(() => {
     if (id) {
       api.get(`/perfumes/${id}/`)
@@ -328,93 +335,143 @@ export default function PerfumeDetailScreen() {
           const perfumeData = response.data;
           setPerfume(perfumeData);
           if (perfumeData && perfumeData.name) {
-             setNotasOlfativas(obterNotasOlfativas(perfumeData.name));
+            setNotasOlfativas(obterNotasOlfativas(perfumeData.name));
           }
         })
         .catch(error => console.error("Erro ao buscar detalhe do perfume:", error))
         .finally(() => {
           setLoading(false);
           Animated.parallel([
-            Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-            Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true })
+            Animated.timing(fadeAnim, { 
+              toValue: 1, 
+              duration: 1000, 
+              useNativeDriver: true,
+              easing: Easing.out(Easing.cubic),
+            }),
+            Animated.timing(slideAnim, { 
+              toValue: 0, 
+              duration: 800, 
+              useNativeDriver: true,
+              easing: Easing.out(Easing.cubic),
+            })
           ]).start();
         });
     }
   }, [id]);
 
-  // Verifica favoritos quando logado
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: parallaxAnim } } }],
+    { useNativeDriver: false }
+  );
+
+  const imageTranslateY = parallaxAnim.interpolate({
+    inputRange: [0, 400],
+    outputRange: [0, -100],
+    extrapolate: 'clamp',
+  });
+
+  const imageOpacity = parallaxAnim.interpolate({
+    inputRange: [0, 300],
+    outputRange: [1, 0.3],
+    extrapolate: 'clamp',
+  });
+
   useEffect(() => {
     if (perfume && signed) {
       checkFavorite();
     }
   }, [perfume, signed]);
 
-  // Atualiza o cabeçalho
   useLayoutEffect(() => {
     if (perfume) {
       navigation.setOptions({
-        title: perfume.name,
-        headerStyle: { backgroundColor: CORES.fundo, shadowColor: 'transparent', elevation: 0 },
+        headerTransparent: true,
+        headerTitle: '',
+        headerStyle: { backgroundColor: 'transparent', shadowColor: 'transparent', elevation: 0 },
         headerTintColor: CORES.dourado,
-        headerTitleStyle: { color: CORES.textoPrincipal, fontWeight: '600', fontSize: 18 },
         headerBackTitleVisible: false,
+        headerLeft: () => (
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={28} color={CORES.dourado} />
+            </Pressable>
+          </Animated.View>
+        ),
         headerRight: () => (
-          <Pressable onPress={toggleFavorite} disabled={favoriteLoading} style={{ marginRight: 15 }}>
-            {favoriteLoading ? (
-              <ActivityIndicator size="small" color={CORES.dourado} />
-            ) : (
-              <Ionicons 
-                name={isFavorite ? "heart" : "heart-outline"} 
-                size={24} 
-                color={isFavorite ? CORES.erro : CORES.textoPrincipal} 
-              />
-            )}
-          </Pressable>
+          <Animated.View style={[styles.headerRight, { opacity: fadeAnim }]}>
+            <Pressable onPress={toggleFavorite} disabled={favoriteLoading} style={styles.favoriteButton}>
+              {favoriteLoading ? (
+                <ActivityIndicator size="small" color={CORES.dourado} />
+              ) : (
+                <Animated.View style={{ transform: [{ scale: imageScale }] }}>
+                  <Ionicons 
+                    name={isFavorite ? "heart" : "heart-outline"} 
+                    size={26} 
+                    color={isFavorite ? CORES.erro : CORES.textoPrincipal} 
+                  />
+                </Animated.View>
+              )}
+            </Pressable>
+            <Pressable style={styles.shareButton}>
+              <Ionicons name="share-social-outline" size={24} color={CORES.textoPrincipal} />
+            </Pressable>
+          </Animated.View>
         ),
       });
     }
   }, [navigation, perfume, isFavorite, favoriteLoading]);
 
-  // Função para adicionar ao carrinho
   const handleAddToCart = async () => {
     if (!signed) {
-      Alert.alert("Atenção", "Você precisa fazer o login para adicionar itens ao carrinho.");
+      Alert.alert("🛒 Atenção", "Faça login para adicionar itens ao carrinho!");
       router.push({ pathname: '/login' } as any);
       return;
     }
     try {
-      await api.post('/cart/add/', {
-        perfume_id: perfume?.id,
-        quantity: 1,
-      });
-      Alert.alert("🎉 Sucesso!", `${perfume?.name} foi adicionado ao carrinho.`);
+      await api.post('/cart/add/', { perfume_id: perfume?.id, quantity: 1 });
+      Alert.alert(
+        "🎉 Adicionado ao Carrinho!", 
+        `${perfume?.name} foi adicionado com sucesso!`,
+        [{ text: "Continuar Comprando", style: "cancel" }, { text: "Ver Carrinho", onPress: () => router.push('/cart') }]
+      );
     } catch (error) {
       console.error("Erro ao adicionar ao carrinho:", error);
-      Alert.alert("Erro", "Não foi possível adicionar o item ao carrinho.");
+      Alert.alert("❌ Erro", "Não foi possível adicionar o item ao carrinho.");
     }
   };
 
-  // Componente de Nota Olfativa
-  const NotaOlfativaCard = ({ titulo, notas, cor }: { titulo: string, notas: string[], cor: string }) => (
-    <View style={styles.notaContainer}>
+  const NotaOlfativaCard = ({ titulo, notas, cor, icone }: { titulo: string, notas: string[], cor: string, icone: string }) => (
+    <Animated.View style={[ styles.notaContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <View style={[styles.notaHeader, { borderLeftColor: cor }]}>
-        <Text style={styles.notaTitulo}>{titulo}</Text>
-        <Ionicons name="ellipse" size={8} color={cor} />
+        <View style={styles.notaTitleContainer}>
+          <Ionicons name={icone as any} size={20} color={cor} />
+          <Text style={styles.notaTitulo}>{titulo}</Text>
+        </View>
+        <View style={[styles.notaIndicator, { backgroundColor: cor }]} />
       </View>
       <View style={styles.notasList}>
         {notas.map((nota, index) => (
           <View key={index} style={styles.notaItem}>
-            <Ionicons name="flower-outline" size={14} color={cor} />
+            <View style={[styles.notaBullet, { backgroundColor: cor }]} />
             <Text style={styles.notaText}>{nota}</Text>
           </View>
         ))}
       </View>
-    </View>
+    </Animated.View>
+  );
+
+  const FeatureItem = ({ icon, text, delay }: { icon: string, text: string, delay: number }) => (
+    <Animated.View style={[ styles.featureItem, { opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: fadeAnim }] }]}>
+      <View style={styles.featureIconContainer}>
+        <Ionicons name={icon as any} size={24} color={CORES.dourado} />
+      </View>
+      <Text style={styles.featureText}>{text}</Text>
+    </Animated.View>
   );
 
   if (loading) {
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: CORES.fundo }]}>
+      <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color={CORES.dourado} />
         <Text style={styles.loadingText}>Carregando fragrância...</Text>
       </View>
@@ -423,41 +480,38 @@ export default function PerfumeDetailScreen() {
 
   if (!perfume) {
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: CORES.fundo }]}>
+      <View style={styles.loaderContainer}>
         <Ionicons name="sad-outline" size={64} color={CORES.dourado} />
-        <Text style={styles.errorText}>Perfume não encontrado.</Text>
+        <Text style={styles.errorText}>Perfume não encontrado</Text>
+        <Pressable style={styles.retryButton} onPress={() => router.back()}>
+          <Text style={styles.retryButtonText}>Voltar</Text>
+        </Pressable>
       </View>
     );
   }
 
-  // Lógica da URL da imagem
   let imageUrl: string | null = null;
   if (perfume.image && typeof perfume.image === 'string') {
     if (Platform.OS === 'web') {
       imageUrl = perfume.image;
     } else {
-      // *** MUDE ESSE IP SE O SEU FOR DIFERENTE ***
-      imageUrl = perfume.image.replace('127.0.0.1', '192.168.0.101'); 
+      imageUrl = perfume.image.replace('127.0.0.1', '192.168.0.101');
     }
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={CORES.fundo} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      <View style={styles.backgroundGradient} />
       
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
-        <Animated.View 
-          style={[
-            styles.imageContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
+        <Animated.View style={[ styles.imageContainer, { transform: [{ translateY: imageTranslateY }], opacity: imageOpacity } ]}>
           {imageUrl ? (
             <Image
               source={{ uri: imageUrl }}
@@ -465,82 +519,93 @@ export default function PerfumeDetailScreen() {
             />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={64} color={CORES.textoSecundario} />
-              <Text style={styles.imagePlaceholderText}>Sem Imagem</Text>
+              <Ionicons name="flower-outline" size={80} color={CORES.dourado} />
+              <Text style={styles.imagePlaceholderText}>Imagem do Perfume</Text>
             </View>
           )}
-          <View style={styles.imageOverlay} />
+          <LinearGradient 
+            colors={['transparent', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0.3)']} 
+            start={{ x: 0, y: 0 }} 
+            end={{ x: 0, y: 1 }} 
+            style={styles.imageGradientOverlay} 
+          />
         </Animated.View>
 
-        <Animated.View 
-          style={[
-            styles.contentContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
-            }
-          ]}
-        >
+        <Animated.View style={[ styles.contentContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] } ]}>
           <View style={styles.headerInfo}>
-            <View style={{ flexShrink: 1, marginRight: 10 }}>
+            <View style={styles.titleContainer}>
               <Text style={styles.name}>{perfume.name}</Text>
-            </View>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={20} color={CORES.dourado} />
-              <Text style={styles.ratingText}>4.8</Text>
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={20} color={CORES.dourado} />
+                <Text style={styles.ratingText}>4.8</Text>
+                <Text style={styles.ratingCount}>(248 avaliações)</Text>
+              </View>
             </View>
           </View>
 
           <View style={styles.priceContainer}>
             <Text style={styles.price}>R$ {perfume.price}</Text>
-            <Text style={styles.priceLabel}>Preço à vista</Text>
+            <View style={styles.priceBadge}>
+              <Ionicons name="pricetag-outline" size={14} color={CORES.fundo} />
+              <Text style={styles.priceBadgeText}>PREÇO ESPECIAL</Text>
+            </View>
+          </View>
+
+          <View style={styles.featuresGrid}>
+            <FeatureItem icon="time-outline" text="12h Duração" delay={100} />
+            <FeatureItem icon="expand-outline" text="Alta Projeção" delay={200} />
+            <FeatureItem icon="leaf-outline" text="Natural" delay={300} />
+            <FeatureItem icon="diamond-outline" text="Premium" delay={400} />
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Descrição</Text>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="document-text-outline" size={24} color={CORES.dourado} />
+              <Text style={styles.sectionTitle}>Sobre a Fragrância</Text>
+            </View>
             <Text style={styles.description}>{perfume.description}</Text>
           </View>
 
           {notasOlfativas && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Pirâmide Olfativa</Text>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="layers-outline" size={24} color={CORES.dourado} />
+                <Text style={styles.sectionTitle}>Pirâmide Olfativa</Text>
+              </View>
               <View style={styles.notasGrid}>
                 <NotaOlfativaCard 
                   titulo="Notas de Saída" 
                   notas={notasOlfativas.saida} 
-                  cor="#4ECDC4" 
+                  cor="#4ECDC4"
+                  icone="leaf-outline"
                 />
                 <NotaOlfativaCard 
                   titulo="Notas de Coração" 
                   notas={notasOlfativas.coracao} 
-                  cor="#FF6B6B" 
+                  cor="#FF6B6B"
+                  icone="flower-outline"
                 />
                 <NotaOlfativaCard 
                   titulo="Notas de Base" 
                   notas={notasOlfativas.base} 
-                  cor="#FFD93D" 
+                  cor="#FFD93D"
+                  icone="diamond-outline"
                 />
               </View>
             </View>
           )}
 
-          <View style={styles.featuresGrid}>
-            <View style={styles.featureItem}>
-              <Ionicons name="time-outline" size={20} color={CORES.dourado} />
-              <Text style={styles.featureText}>Longa Duração</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="expand-outline" size={20} color={CORES.dourado} />
-              <Text style={styles.featureText}>Alta Projeção</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="leaf-outline" size={20} color={CORES.dourado} />
-              <Text style={styles.featureText}>Ingredientes Naturais</Text>
+          <View style={styles.guaranteeCard}>
+            <Ionicons name="shield-checkmark-outline" size={32} color={CORES.dourado} />
+            <View style={styles.guaranteeText}>
+              <Text style={styles.guaranteeTitle}>Garantia de Autenticidade</Text>
+              <Text style={styles.guaranteeSubtitle}>Produto 100% original com selo de qualidade</Text>
             </View>
           </View>
         </Animated.View>
       </ScrollView>
 
+      {/* --- ALTERAÇÃO NO FOOTER --- */}
       <Animated.View 
         style={[
           styles.footer,
@@ -550,26 +615,44 @@ export default function PerfumeDetailScreen() {
           }
         ]}
       >
-        <Pressable 
-          style={({ pressed }) => [
-            styles.buttonPressable,
-            pressed && styles.buttonPressed
-          ]} 
-          onPress={handleAddToCart}
-        >
-          <Ionicons name="cart-outline" size={20} color={CORES.botaoTexto} />
-          <Text style={styles.buttonText}>ADICIONAR AO CARRINHO</Text>
-        </Pressable>
+        <View style={styles.footerContent}>
+          
+          {/* O botão de "Favoritar" foi removido daqui */}
+          
+          <Pressable 
+            style={({ pressed }) => [
+              styles.cartButton,
+              pressed && styles.buttonPressed
+            ]} 
+            onPress={handleAddToCart}
+          >
+            <View style={styles.cartButtonContent}>
+              <Ionicons name="cart-outline" size={22} color={CORES.botaoTexto} />
+              <Text style={styles.cartButtonText}>ADICIONAR AO CARRINHO</Text>
+            </View>
+            <View style={styles.priceTag}>
+              <Text style={styles.priceTagText}>R$ {perfume.price}</Text>
+            </View>
+          </Pressable>
+        </View>
       </Animated.View>
-    </SafeAreaView>
+      {/* --- FIM DA ALTERAÇÃO --- */}
+    </View>
   );
 }
 
-// ... (Todos os seus styles 'lindos' continuam os mesmos) ...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: CORES.fundo,
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: height * 0.6,
+    backgroundColor: CORES.fundoCard,
   },
   scrollView: {
     flex: 1,
@@ -578,22 +661,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
-    backgroundColor: CORES.fundo, 
+    gap: 20,
+    backgroundColor: CORES.fundo,
   },
   loadingText: {
     color: CORES.textoSecundario,
     fontSize: 16,
+    marginTop: 10,
   },
   errorText: {
     fontSize: 18,
     color: CORES.textoSecundario,
-    marginTop: 16,
+    marginTop: 10,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    backgroundColor: CORES.dourado,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: CORES.botaoTexto,
+    fontWeight: '600',
+    fontSize: 16,
   },
   imageContainer: {
-    position: 'relative',
-    height: 350,
-    backgroundColor: CORES.card, 
+    height: 500,
+    backgroundColor: CORES.card,
   },
   perfumeImage: {
     width: '100%',
@@ -609,159 +704,301 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     color: CORES.textoSecundario,
-    marginTop: 10,
-    fontSize: 14,
+    marginTop: 15,
+    fontSize: 16,
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  
+  imageGradientOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '100%',
   },
+  
   contentContainer: {
     backgroundColor: CORES.fundo,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    marginTop: -30,
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 100,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    marginTop: -40,
+    paddingHorizontal: 25,
+    paddingTop: 40,
+    paddingBottom: 120,
   },
   headerInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 25,
+  },
+  titleContainer: {
+    gap: 10,
   },
   name: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: CORES.textoPrincipal,
     letterSpacing: 0.5,
+    lineHeight: 38,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CORES.card,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
+    gap: 8,
   },
   ratingText: {
-    color: CORES.textoPrincipal,
-    fontWeight: '600',
+    color: CORES.dourado,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  ratingCount: {
+    color: CORES.textoSecundario,
     fontSize: 14,
   },
   priceContainer: {
     marginBottom: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   price: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '800',
     color: CORES.dourado,
     letterSpacing: 0.5,
   },
-  priceLabel: {
-    fontSize: 14,
-    color: CORES.textoSecundario,
+  priceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CORES.dourado,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    gap: 5,
   },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: CORES.textoPrincipal,
-    marginBottom: 15,
+  priceBadgeText: {
+    color: CORES.fundo,
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0.5,
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: CORES.textoSecundario,
-  },
-  notasGrid: {
-    gap: 15,
-  },
-  notaContainer: {
-    backgroundColor: CORES.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: CORES.borda,
-  },
-  notaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingLeft: 8,
-    borderLeftWidth: 3,
-  },
-  notaTitulo: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: CORES.textoPrincipal,
-  },
-  notasList: {
-    gap: 8,
-  },
-  notaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  notaText: {
-    fontSize: 14,
-    color: CORES.textoSecundario,
   },
   featuresGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginBottom: 35,
   },
   featureItem: {
     alignItems: 'center',
     gap: 8,
     flex: 1,
   },
+  featureIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
   featureText: {
-    fontSize: 12,
+    fontSize: 11,
     color: CORES.textoSecundario,
     textAlign: 'center',
+    fontWeight: '500',
+  },
+  section: {
+    marginBottom: 35,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: CORES.textoPrincipal,
+    letterSpacing: 0.5,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 26,
+    color: CORES.textoSecundario,
+    letterSpacing: 0.3,
+  },
+  notasGrid: {
+    gap: 20,
+  },
+  notaContainer: {
+    backgroundColor: CORES.card,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  notaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingLeft: 10,
+    borderLeftWidth: 4,
+  },
+  notaTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  notaTitulo: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: CORES.textoPrincipal,
+  },
+  notaIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  notasList: {
+    gap: 12,
+  },
+  notaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notaBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  notaText: {
+    fontSize: 15,
+    color: CORES.textoSecundario,
+    fontWeight: '500',
+  },
+  guaranteeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CORES.card,
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: CORES.borda,
+    gap: 15,
+  },
+  guaranteeText: {
+    flex: 1,
+  },
+  guaranteeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: CORES.textoPrincipal,
+    marginBottom: 4,
+  },
+  guaranteeSubtitle: {
+    fontSize: 14,
+    color: CORES.textoSecundario,
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: CORES.fundo,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingHorizontal: 25,
+    paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: CORES.borda,
   },
-  buttonPressable: {
-    backgroundColor: CORES.dourado,
+  footerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
+    // justifyContent: 'center', // Removido pois o botão de carrinho agora ocupará todo o espaço
+    gap: 15,
+  },
+  wishlistButton: { // Este estilo não será mais usado, mas o mantive para referência
+    width: 50,
+    height: 50,
     borderRadius: 25,
-    gap: 12,
-    shadowColor: CORES.dourado,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: CORES.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: CORES.borda,
   },
-  buttonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
+  cartButton: {
+    flex: 1, // Faz o botão de carrinho ocupar todo o espaço disponível
+    backgroundColor: CORES.dourado,
+    borderRadius: 25,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  buttonText: {
+  cartButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 20, // Aumentado o padding para o texto
+    paddingVertical: 18,
+    flex: 1,
+  },
+  cartButtonText: {
     color: CORES.botaoTexto,
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  priceTag: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    paddingHorizontal: 15,
+    paddingVertical: 18,
+  },
+  priceTagText: {
+    color: CORES.botaoTexto,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginRight: 10,
+  },
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  shareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.8,
   },
 });
