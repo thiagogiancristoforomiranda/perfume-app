@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
 import api from '../src/services/api';
 
-// Paleta de cores sofisticada
+// Paleta de cores
 const CORES = {
   fundo: '#000000',
   fundoCard: '#0A0A0A',
@@ -22,27 +22,22 @@ const CORES = {
   botaoTexto: '#000000',
 };
 
-// --- Tipagens ---
-interface User {
-  id: number;
-  name?: string;
-  username?: string;
-  email?: string;
+// --- Tipagens ATUALIZADAS ---
+interface ProfileData {
   phone?: string;
   cpf?: string;
-  birth_date?: string;
+  birth_date?: string | null; // Pode ser null
   gender?: string;
-  [key: string]: any;
 }
 
 interface UserData {
   id: number;
   name: string;
   email: string;
-  phone?: string;
-  cpf?: string;
-  birth_date?: string;
-  gender?: string;
+  first_name: string;
+  last_name: string;
+  profile: ProfileData; // Perfil aninhado
+  [key: string]: any;
 }
 
 interface Order {
@@ -56,7 +51,7 @@ interface Favorite {
 }
 
 export default function UserDataScreen() {
-  const { signed, user } = useAuth() as { signed: boolean; user: User | null };
+  const { signed, user } = useAuth() as { signed: boolean; user: { id: number; name: string; email: string; } | null };
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +61,6 @@ export default function UserDataScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
 
-  // Estado do formulário
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -76,7 +70,7 @@ export default function UserDataScreen() {
     gender: '',
   });
 
-  // Buscar dados do usuário (AGORA INCLUI PEDIDOS E FAVORITOS)
+  // Buscar dados do usuário
   const fetchUserData = async () => {
     if (!signed) {
       setLoading(false);
@@ -86,54 +80,42 @@ export default function UserDataScreen() {
     try {
       setLoading(true);
       
-      // Tentar buscar dados completos da API
-      try {
-        const response = await api.get('/user/profile/');
-        const data = response.data;
-        setUserData(data);
-        setFormData({
-          name: data.name || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          cpf: data.cpf || '',
-          birth_date: data.birth_date || '',
-          gender: data.gender || '',
-        });
-      } catch (error) {
-        console.log('Endpoint /user/profile/ não disponível, usando dados do contexto');
-        if (user) {
-          const userDataFromContext: UserData = {
-            id: user.id, name: user.name || '', email: user.email || '', phone: user.phone || '',
-            cpf: user.cpf || '', birth_date: user.birth_date || '', gender: user.gender || '',
-          };
-          setUserData(userDataFromContext);
-          setFormData({
-            name: userDataFromContext.name || '',
-            email: userDataFromContext.email || '',
-            phone: userDataFromContext.phone || '',
-            cpf: userDataFromContext.cpf || '',
-            birth_date: userDataFromContext.birth_date || '',
-            gender: userDataFromContext.gender || '',
-          });
-        }
-      }
+      // --- CORREÇÃO DE URL E LÓGICA ---
+      // Corrigido de /user/profile/ para /auth/profile/
+      const response = await api.get('/auth/profile/');
+      const data = response.data;
       
-      // Buscar Pedidos
+      setUserData(data);
+      setFormData({
+        name: data.name || (user?.name || ''),
+        email: data.email || (user?.email || ''),
+        phone: data.profile?.phone || '',
+        cpf: data.profile?.cpf || '',
+        birth_date: data.profile?.birth_date || '', // Vem como AAAA-MM-DD
+        gender: data.profile?.gender || '',
+      });
+      // --- FIM DA CORREÇÃO ---
+      
       const ordersResponse = await api.get('/orders/');
       setOrders(ordersResponse.data);
       
-      // Buscar Favoritos
       const favoritesResponse = await api.get('/favorites/');
       setFavorites(favoritesResponse.data);
       
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error.response?.data || error.message);
+      if (user) {
+        setFormData({
+          name: user.name || '',
+          email: user.email || '',
+          phone: '', cpf: '', birth_date: '', gender: '',
+        });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Atualizar quando a tela receber foco
   useFocusEffect(
     useCallback(() => {
       fetchUserData();
@@ -145,26 +127,69 @@ export default function UserDataScreen() {
     setModalVisible(true);
   };
 
+  // --- handleSaveData ATUALIZADO ---
   const handleSaveData = async () => {
     if (!editingField) return;
     try {
+      let value: string | null = formData[editingField as keyof typeof formData];
+      
+      // Validação específica para Data de Nascimento
+      if (editingField === 'birth_date' && value) {
+         const parts = value.split('/');
+         if (parts.length === 3 && parts[2].length === 4) {
+           // Converte DD/MM/AAAA para AAAA-MM-DD
+           value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+         } else if (value.split('-').length === 3 && value.split('-')[0].length === 4) {
+           // Já está em AAAA-MM-DD, não faz nada
+         } else {
+            // Formato inválido
+            Alert.alert('Erro no Formato', 'Para Data de Nascimento, use o formato DD/MM/AAAA.');
+            return;
+         }
+      } else if (editingField === 'birth_date' && !value) {
+          value = null; // Permite esvaziar o campo
+      }
+
       const updateData = {
-        [editingField]: formData[editingField as keyof typeof formData]
+        [editingField]: value
       };
-      await api.put('/user/profile/', updateData);
+
+      // --- CORREÇÃO DE URL ---
+      // Corrigido de /user/profile/ para /auth/profile/
+      await api.put('/auth/profile/', updateData);
+      
       Alert.alert('Sucesso', 'Dados atualizados com sucesso!');
       setModalVisible(false);
       setEditingField(null);
       fetchUserData();
+      
     } catch (error: any) {
       console.error('Erro ao salvar dados:', error.response?.data || error.message);
-      Alert.alert('Erro', 'Não foi possível salvar os dados.');
+      
+      // --- CORREÇÃO DA MENSAGEM DE ERRO ---
+      // Agora mostra o erro real do backend (ex: "no such table")
+      const backendError = error.response?.data?.error;
+      Alert.alert(
+        'Erro ao Salvar',
+        backendError || 'Não foi possível salvar os dados. Tente novamente.'
+      );
+      // --- FIM DA CORREÇÃO ---
     }
   };
+  // --- FIM DA ATUALIZAÇÃO ---
 
+  // Funções de formatação
   const formatCPF = (cpf: string) => !cpf ? '' : cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   const formatPhone = (phone: string) => !phone || phone.length < 10 ? phone : (phone.length === 11 ? phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3') : phone.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3'));
-  const formatDate = (date: string) => !date ? '' : new Date(date).toLocaleDateString('pt-BR');
+  const formatDate = (date: string) => {
+    if (!date) return '';
+    // Converte AAAA-MM-DD para DD/MM/AAAA
+    const parts = date.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return date; // Retorna o formato original (ex: DD/MM/AAAA)
+  };
 
   const DataItem = ({ icon, label, value, onEdit, isLast = false }: any) => (
     <Pressable style={[styles.dataItem, isLast && styles.dataItemLast]} onPress={onEdit}>
@@ -223,15 +248,13 @@ export default function UserDataScreen() {
           <>
             <View style={styles.dataSection}>
               <Text style={styles.sectionTitle}>Informações Pessoais</Text>
-              <DataItem icon={<Ionicons name="person-outline" size={22} color={CORES.dourado} />} label="Nome Completo" value={userData?.name} onEdit={() => openEditModal('name')} />
-              <DataItem icon={<Ionicons name="mail-outline" size={22} color={CORES.dourado} />} label="E-mail" value={userData?.email} onEdit={() => openEditModal('email')} />
-              <DataItem icon={<Ionicons name="call-outline" size={22} color={CORES.dourado} />} label="Telefone" value={formatPhone(userData?.phone || '')} onEdit={() => openEditModal('phone')} />
-              <DataItem icon={<Ionicons name="card-outline" size={22} color={CORES.dourado} />} label="CPF" value={formatCPF(userData?.cpf || '')} onEdit={() => openEditModal('cpf')} />
-              <DataItem icon={<Ionicons name="calendar-outline" size={22} color={CORES.dourado} />} label="Data de Nascimento" value={formatDate(userData?.birth_date || '')} onEdit={() => openEditModal('birth_date')} />
-              <DataItem icon={<Ionicons name="male-female-outline" size={22} color={CORES.dourado} />} label="Gênero" value={userData?.gender} onEdit={() => openEditModal('gender')} isLast={true} />
+              <DataItem icon={<Ionicons name="person-outline" size={22} color={CORES.dourado} />} label="Nome Completo" value={formData.name} onEdit={() => openEditModal('name')} />
+              <DataItem icon={<Ionicons name="mail-outline" size={22} color={CORES.dourado} />} label="E-mail" value={formData.email} onEdit={() => openEditModal('email')} />
+              <DataItem icon={<Ionicons name="call-outline" size={22} color={CORES.dourado} />} label="Telefone" value={formatPhone(formData.phone)} onEdit={() => openEditModal('phone')} />
+              <DataItem icon={<Ionicons name="card-outline" size={22} color={CORES.dourado} />} label="CPF" value={formatCPF(formData.cpf)} onEdit={() => openEditModal('cpf')} />
+              <DataItem icon={<Ionicons name="calendar-outline" size={22} color={CORES.dourado} />} label="Data de Nascimento" value={formatDate(formData.birth_date)} onEdit={() => openEditModal('birth_date')} />
+              <DataItem icon={<Ionicons name="male-female-outline" size={22} color={CORES.dourado} />} label="Gênero" value={formData.gender} onEdit={() => openEditModal('gender')} isLast={true} />
             </View>
-
-            {/* ===== SEÇÃO DE SEGURANÇA (ALTERAR SENHA) REMOVIDA DAQUI ===== */}
             
             <View style={styles.statsSection}>
               <Text style={styles.sectionTitle}>Estatísticas da Conta</Text>
@@ -287,7 +310,7 @@ export default function UserDataScreen() {
   );
 }
 
-// ===== STYLES (SEM ALTERAÇÕES, MAS COM A SEÇÃO DE SEGURANÇA REMOVIDA) =====
+// Estilos
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -355,7 +378,6 @@ const styles = StyleSheet.create({
     borderColor: CORES.borda,
     overflow: 'hidden',
   },
-  // --- Bloco de estilo 'securitySection' removido ---
   statsSection: {
     backgroundColor: CORES.card,
     marginHorizontal: 20,
@@ -414,7 +436,6 @@ const styles = StyleSheet.create({
     color: CORES.textoSecundario,
     fontStyle: 'italic',
   },
-  // --- Bloco de estilo 'securityItem' e 'securityLabel' removido ---
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',

@@ -3,18 +3,16 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
-# --- CÓDIGO MODIFICADO ---
-from .models import Perfume, Cart, CartItem, Order, Favorite, Address
+# Profile e Address foram adicionados
+from .models import Perfume, Cart, CartItem, Order, Favorite, Address, Profile
 from .serializers import (
     UserSerializer, PerfumeSerializer, 
     CartSerializer, CartItemSerializer, 
     OrderSerializer, FavoriteSerializer,
-    AddressSerializer
+    AddressSerializer, 
+    UserDetailSerializer # Importa o novo serializer
 )
-# --- FIM DA MODIFICAÇÃO ---
 
-
-# ... (Todo o seu código de register_user, user_login, etc., continua aqui, sem alterações) ...
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny]) 
 def register_user(request):
@@ -38,9 +36,15 @@ def user_login(request):
         user = User.objects.get(username=username)
         if user.check_password(password):
             refresh = RefreshToken.for_user(user)
+            # Adicionado 'name' na resposta do login
             return Response({
                 'message': 'Login successful',
-                'user': {'id': user.id, 'username': user.username, 'email': user.email},
+                'user': { 
+                    'id': user.id, 
+                    'username': user.username, 
+                    'email': user.email, 
+                    'name': f"{user.first_name} {user.last_name}".strip() or user.username 
+                },
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }, status=status.HTTP_200_OK)
@@ -49,14 +53,60 @@ def user_login(request):
     except User.DoesNotExist:
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-@api_view(['GET'])
+# --- VIEW MODIFICADA ---
+# Agora aceita GET (para ler) e PUT (para atualizar)
+@api_view(['GET', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
 def user_profile(request):
-    user = request.user
-    return Response({
-        'id': user.id, 'username': user.username, 'email': user.email,
-        'name': f"{user.first_name} {user.last_name}".strip() or user.username
-    })
+    """
+    Retorna ou atualiza os dados do usuário logado.
+    """
+    try:
+        user = request.user
+        # Tenta buscar o perfil, se não existir (usuário antigo), cria um
+        profile, created = Profile.objects.get_or_create(user=user)
+    except Exception as e:
+         return Response({'error': f'Erro ao buscar perfil: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        # Retorna os dados completos do usuário e seu perfil
+        serializer = UserDetailSerializer(user)
+        # Formatamos o 'name' para o frontend
+        data = serializer.data
+        data['name'] = f"{user.first_name} {user.last_name}".strip() or user.username
+        return Response(data)
+
+    elif request.method == 'PUT':
+        # O frontend envia um objeto "plano" como {'phone': '123'}
+        # Vamos atualizar o User ou o Profile dependendo da chave
+        data = request.data
+        user_fields = ['email']
+        profile_fields = ['phone', 'cpf', 'birth_date', 'gender']
+        
+        # 'name' é um caso especial, dividimos em first_name e last_name
+        if 'name' in data:
+            parts = data['name'].split(' ', 1)
+            user.first_name = parts[0]
+            user.last_name = parts[1] if len(parts) > 1 else ''
+        
+        for key, value in data.items():
+            if key in user_fields:
+                setattr(user, key, value)
+            if key in profile_fields:
+                # Tratamento especial para datas nulas ou strings vazias
+                if key == 'birth_date' and not value:
+                    value = None
+                setattr(profile, key, value)
+
+        user.save()
+        profile.save()
+        
+        serializer = UserDetailSerializer(user)
+        # Adicionamos o 'name' formatado na resposta
+        response_data = serializer.data
+        response_data['name'] = f"{user.first_name} {user.last_name}".strip() or user.username
+        return Response(response_data, status=status.HTTP_200_OK)
+# --- FIM DA MODIFICAÇÃO ---
 
 class PerfumeList(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
@@ -85,11 +135,13 @@ def add_to_cart(request):
         perfume = Perfume.objects.get(id=perfume_id)
     except Perfume.DoesNotExist:
         return Response({'error': 'Perfume not found'}, status=status.HTTP_404_NOT_FOUND)
+    
     cart_item, created = CartItem.objects.get_or_create(cart=cart, perfume=perfume)
+    
     if not created:
-        cart_item.quantity += quantity
+        cart_item.quantity += int(quantity)
     else:
-        cart_item.quantity = quantity
+        cart_item.quantity = int(quantity)
     cart_item.save()
     return Response({'message': 'Item added to cart'}, status=status.HTTP_200_OK)
 
@@ -101,11 +153,11 @@ def update_cart_item(request):
     quantity = request.data.get('quantity', 1)
     try:
         cart_item = CartItem.objects.get(id=item_id, cart=cart)
-        if quantity <= 0:
+        if int(quantity) <= 0:
             cart_item.delete()
             return Response({'message': 'Item removed from cart'}, status=status.HTTP_200_OK)
         else:
-            cart_item.quantity = quantity
+            cart_item.quantity = int(quantity)
             cart_item.save()
             return Response({'message': 'Cart updated'}, status=status.HTTP_200_OK)
     except CartItem.DoesNotExist:
@@ -137,17 +189,33 @@ def checkout(request):
     items = cart.items.all()
     if not items:
         return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
-    shipping_address = request.data.get('shipping_address')
+    
+    shipping_address_id = request.data.get('shipping_address_id')
     payment_method = request.data.get('payment_method')
-    if not shipping_address or not payment_method:
-        return Response({'error': 'shipping_address e payment_method são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not shipping_address_id or not payment_method:
+        return Response({'error': 'shipping_address_id e payment_method são obrigatórios.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        address = Address.objects.get(id=shipping_address_id, user=request.user)
+        # Formata o endereço para salvar no pedido
+        shipping_address_str = f"{address.street}, {address.number}, {address.complement or ''} - {address.neighborhood}, {address.city} - {address.state}, CEP: {address.zip_code}"
+    except Address.DoesNotExist:
+        return Response({'error': 'Endereço não encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
     total_amount = sum(item.perfume.price * item.quantity for item in items)
+    
     order = Order.objects.create(
-        user=request.user, total_amount=total_amount,
-        shipping_address=shipping_address, payment_method=payment_method
+        user=request.user, 
+        total_amount=total_amount,
+        shipping_address=shipping_address_str, 
+        payment_method=payment_method
     )
     order.items.set(items)
+    
+    # Limpa o carrinho
     cart.items.all().delete()
+    
     return Response({'message': 'Order created successfully', 'order_id': order.id}, status=status.HTTP_201_CREATED)
 
 class OrderList(generics.ListAPIView):
@@ -215,31 +283,16 @@ def check_favorite(request, perfume_id):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# --- CÓDIGO ADICIONADO ---
-# Views para Endereços
 class AddressListCreate(generics.ListCreateAPIView):
-    """
-    Lista todos os endereços do usuário logado ou cria um novo.
-    """
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
-        # Retorna apenas os endereços do usuário que fez a requisição
         return Address.objects.filter(user=self.request.user)
-
     def perform_create(self, serializer):
-        # Associa o novo endereço ao usuário logado
         serializer.save(user=self.request.user)
 
 class AddressDetail(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Recupera, atualiza ou deleta um endereço específico.
-    """
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
-        # Garante que o usuário só possa ver/editar/deletar seus próprios endereços
         return Address.objects.filter(user=self.request.user)
-# --- FIM DO CÓDIGO ADICIONADO ---

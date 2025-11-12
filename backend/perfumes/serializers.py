@@ -1,8 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-# --- CÓDIGO MODIFICADO ---
-from .models import Perfume, Cart, CartItem, Order, Favorite, Address
-# --- FIM DA MODIFICAÇÃO ---
+# Profile foi adicionado
+from .models import Perfume, Cart, CartItem, Order, Favorite, Address, Profile
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,6 +16,48 @@ class UserSerializer(serializers.ModelSerializer):
             password=validated_data['password']
         )
         return user
+
+# --- CÓDIGO NOVO ADICIONADO ---
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ('phone', 'cpf', 'birth_date', 'gender')
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    # 'profile' é o 'related_name' que definimos no Profile
+    profile = ProfileSerializer()
+
+    class Meta:
+        model = User
+        # Adicionamos os campos do User que queremos ver/editar
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'profile')
+        read_only_fields = ('username',) # Não deixamos o usuário mudar o username
+
+    def update(self, instance, validated_data):
+        # Lógica para salvar o perfil aninhado
+        profile_data = validated_data.pop('profile', {})
+        
+        # Garante que 'profile' exista, mesmo para usuários antigos
+        try:
+            profile = instance.profile
+        except Profile.DoesNotExist:
+            profile = Profile.objects.create(user=instance)
+
+        # Atualiza os campos do User
+        instance.email = validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.save()
+
+        # Atualiza os campos do Profile
+        profile.phone = profile_data.get('phone', profile.phone)
+        profile.cpf = profile_data.get('cpf', profile.cpf)
+        profile.birth_date = profile_data.get('birth_date', profile.birth_date)
+        profile.gender = profile_data.get('gender', profile.gender)
+        profile.save()
+
+        return instance
+# --- FIM DO CÓDIGO NOVO ---
 
 class PerfumeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,11 +119,8 @@ class FavoriteSerializer(serializers.ModelSerializer):
         model = Favorite
         fields = ['id', 'perfume', 'created_at']
 
-# --- CÓDIGO ADICIONADO ---
-# Serializador para o modelo de Endereço
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = '__all__'
-        read_only_fields = ['user'] # O usuário será pego automaticamente do request
-# --- FIM DO CÓDIGO ADICIONADO ---
+        read_only_fields = ['user']

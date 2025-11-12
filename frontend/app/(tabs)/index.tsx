@@ -3,22 +3,19 @@ import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, Text, View, FlatList, SafeAreaView,
     ActivityIndicator, Alert, Pressable, StatusBar, Image,
-    Animated, Easing, TextInput, Dimensions, Platform // Adicionado Platform
+    Animated, Easing, TextInput, Dimensions, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import api, { API_URL } from '../../src/services/api'; // Importar API_URL
+import api, { API_URL } from '../../src/services/api';
 
-// --- CORREÇÃO 1: Interface ---
-// 'brand' removido, 'image_url' corrigido para 'image'
 interface Perfume {
   id: number;
   name?: string;
   price: string;
-  image?: string | null; 
+  image?: string | null;
 }
-// --- FIM DA CORREÇÃO ---
 
-// Paleta de cores
+// Paleta de cores refinada para boutique de luxo
 const CORES = {
   fundo: '#000000',
   fundoCard: '#0A0A0A',
@@ -30,12 +27,61 @@ const CORES = {
   douradoSuave: '#FFE55C',
   douradoEscuro: '#B8860B',
   borda: '#2A2A2A',
+  bordaDourada: '#D4AF37',
+  vintage: '#8B4513',
 };
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// URL do seu backend no Render
-const BACKEND_URL = 'https://perfume-app-backend-kc2d.onrender.com';
+// Componente de Header da Coleção separado
+const CollectionHeader = () => (
+  <View style={styles.collectionHeader}>
+    <Text style={styles.collectionTitle}>Coleção Exclusiva</Text>
+    <Text style={styles.collectionSubtitle}>Fragrâncias que contam histórias</Text>
+  </View>
+);
+
+// Componente de Efeito de Brilho
+const GlowEffect = () => {
+  const glowAnim = useState(new Animated.Value(0))[0];
+  
+  useEffect(() => {
+    const glowSequence = Animated.sequence([
+      Animated.timing(glowAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glowAnim, {
+        toValue: 0,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+    ]);
+    
+    Animated.loop(glowSequence).start();
+  }, []);
+
+  const glowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <Animated.View 
+      style={[
+        styles.glowBackground,
+        {
+          opacity: glowOpacity,
+          transform: [{ scale: glowAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 1.1]
+          })}]
+        }
+      ]} 
+    />
+  );
+};
 
 export default function HomeScreen() {
   const [perfumes, setPerfumes] = useState<Perfume[]>([]);
@@ -46,9 +92,9 @@ export default function HomeScreen() {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(0.9))[0];
   const searchAnim = useState(new Animated.Value(0))[0];
+  const logoAnim = useState(new Animated.Value(0))[0];
   const router = useRouter();
 
-  // Função para buscar os dados
   async function fetchPerfumes() {
     try {
       setLoading(true);
@@ -65,8 +111,6 @@ export default function HomeScreen() {
     }
   }
 
-  // --- CORREÇÃO 2: Pesquisa ---
-  // Removida a lógica de busca pelo 'brand'
   const handlePesquisa = (texto: string) => {
     setPesquisa(texto);
     
@@ -79,9 +123,7 @@ export default function HomeScreen() {
       setPerfumesFiltrados(filtrado);
     }
   };
-  // --- FIM DA CORREÇÃO ---
 
-  // Alternar modo pesquisa
   const togglePesquisa = () => {
     if (modoPesquisa) {
       setPesquisa('');
@@ -101,41 +143,51 @@ export default function HomeScreen() {
     }
   };
 
-  // Animação de entrada
   useEffect(() => {
     fetchPerfumes();
     
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+    // Animação sequencial mais elaborada
+    Animated.sequence([
+      // Primeiro a logo
+      Animated.timing(logoAnim, {
         toValue: 1,
-        duration: 800,
+        duration: 1000,
         useNativeDriver: true,
         easing: Easing.out(Easing.cubic),
       }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.cubic),
-      }),
+      // Depois o conteúdo
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+          easing: Easing.out(Easing.cubic),
+        }),
+      ])
     ]).start();
   }, []);
 
-  // Função para navegar para o perfil
   const handleProfilePress = () => {
     router.push('/profile');
   };
 
-  // --- CORREÇÃO 3: Componente do Card ---
   const PerfumeCard = ({ item, index }: { item: Perfume; index: number }) => {
     const [scaleValue] = useState(new Animated.Value(1));
     const [imageError, setImageError] = useState(false);
+    const [cardHovered, setCardHovered] = useState(false);
     
     const handlePressIn = () => {
       Animated.spring(scaleValue, {
-        toValue: 0.95,
+        toValue: 0.97,
         useNativeDriver: true,
       }).start();
+      setCardHovered(true);
     };
     
     const handlePressOut = () => {
@@ -143,23 +195,19 @@ export default function HomeScreen() {
         toValue: 1,
         useNativeDriver: true,
       }).start();
+      setCardHovered(false);
     };
 
     let imageUrl: string | null = null;
     
     if (item.image && !imageError) {
       if (Platform.OS === 'web') {
-        // Na web, o backend já envia a URL completa do Render
         imageUrl = item.image;
       } else {
-        // No mobile (Expo Go), precisamos trocar o '127.0.0.1' pelo IP da rede
-        // Assumindo que API_URL está definido como 'http://SEU_IP:8000/api'
-        const baseURL = API_URL.replace('/api', ''); 
-        // Se a imagem já for a URL completa do Render, não faz nada
+        const baseURL = API_URL.replace('/api', '');
         if (item.image.startsWith('http')) {
           imageUrl = item.image;
         } else {
-          // Se for caminho local (ex: /media/...), constrói a URL local
           imageUrl = `${baseURL}${item.image}`;
         }
       }
@@ -180,9 +228,16 @@ export default function HomeScreen() {
               {
                 transform: [{ scale: scaleValue }],
                 opacity: fadeAnim,
+                backgroundColor: cardHovered ? CORES.cardHover : CORES.card,
+                borderColor: cardHovered ? CORES.bordaDourada : CORES.borda,
               },
             ]}
           >
+            {/* Efeito de brilho no hover */}
+            {cardHovered && (
+              <View style={styles.cardGlow} />
+            )}
+            
             <View style={styles.itemContent}>
               <View style={styles.imageContainer}>
                 {imageUrl ? (
@@ -197,48 +252,60 @@ export default function HomeScreen() {
                     <Ionicons name="flower-outline" size={32} color={CORES.dourado} />
                   </View>
                 )}
+                {/* Badge de luxo */}
+                <View style={styles.luxuryBadge}>
+                  <Ionicons name="diamond" size={12} color={CORES.dourado} />
+                </View>
               </View>
 
               <View style={styles.itemDetails}>
                 <View style={styles.itemTextContainer}>
-                  <Text style={styles.itemName} numberOfLines={1}>
+                  <Text style={styles.itemName} numberOfLines={2}>
                     {item.name ?? 'Perfume Exclusivo'}
                   </Text>
                   
-                  {/* Bloco 'brand' removido daqui */}
-                  
-                  <View style={styles.ratingContainer}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Ionicons 
-                        key={star} 
-                        name="star" 
-                        size={14} 
-                        color={CORES.dourado} 
-                      />
-                    ))}
-                  </View>
+                  {/* Espaço reservado para informações adicionais se necessário no futuro */}
+                  <View style={styles.extraInfoSpace} />
                 </View>
                 
                 <View style={styles.priceContainer}>
                   <Text style={styles.itemPrice}>R$ {item.price}</Text>
-                  <View style={styles.buyButton}>
+                  <View style={[styles.buyButton, cardHovered && styles.buyButtonHover]}>
                     <Ionicons name="arrow-forward" size={16} color={CORES.fundo} />
                   </View>
                 </View>
               </View>
             </View>
+
+            {/* Linha decorativa dourada */}
+            <View style={styles.goldLine} />
           </Animated.View>
         </Pressable>
       </Link>
     );
   };
-  // --- FIM DA CORREÇÃO ---
 
-  // O resto do seu arquivo continua igual...
   const searchWidth = searchAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '70%'],
   });
+
+  // Componente para lista vazia
+  const EmptyListComponent = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons 
+        name={pesquisa ? "search-outline" : "rose-outline"} 
+        size={64} 
+        color={CORES.dourado} 
+      />
+      <Text style={styles.emptyListText}>
+        {pesquisa ? 'Nenhum perfume encontrado' : 'Nossa coleção está sendo preparada'}
+      </Text>
+      <Text style={styles.emptyListSubtext}>
+        {pesquisa ? 'Tente outros termos de busca' : 'Volte em breve para descobrir nossas fragrâncias'}
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -248,24 +315,42 @@ export default function HomeScreen() {
         style={[
           styles.headerContainer,
           {
-            opacity: fadeAnim,
-            transform: [{ translateY: fadeAnim.interpolate({
+            opacity: logoAnim,
+            transform: [{ translateY: logoAnim.interpolate({
               inputRange: [0, 1],
               outputRange: [-50, 0]
             }) }]
           }
         ]}
       >
+        {/* Efeito de brilho atrás da logo */}
+        <GlowEffect />
+        
         <View style={styles.headerContent}>
           {!modoPesquisa && (
             <View style={styles.logoContainer}>
-              <Image
-                source={require('../../assets/images/logo.png')}
-                style={styles.logo}
-              />
+              <Animated.View 
+                style={[
+                  styles.logoWrapper,
+                  {
+                    transform: [{
+                      rotate: logoAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['-10deg', '0deg']
+                      })
+                    }]
+                  }
+                ]}
+              >
+                <Image
+                  source={require('../../assets/images/logo.png')}
+                  style={styles.logo}
+                />
+              </Animated.View>
               <View style={styles.titleContainer}>
                 <Text style={styles.title}>Perfumaria</Text>
                 <Text style={styles.subtitleMain}>LEDO</Text>
+                <View style={styles.titleUnderline} />
               </View>
             </View>
           )}
@@ -311,7 +396,20 @@ export default function HomeScreen() {
         </View>
         
         {!modoPesquisa && (
-          <Text style={styles.legacyText}>desde 1950</Text>
+          <Animated.View 
+            style={{
+              opacity: logoAnim,
+              transform: [{
+                translateX: logoAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-100, 0]
+                })
+              }]
+            }}
+          >
+            <Text style={styles.legacyText}>desde 1950</Text>
+            <View style={styles.heritageLine} />
+          </Animated.View>
         )}
       </Animated.View>
 
@@ -346,21 +444,10 @@ export default function HomeScreen() {
             onRefresh={fetchPerfumes}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons 
-                  name={pesquisa ? "search-outline" : "rose-outline"} 
-                  size={64} 
-                  color={CORES.dourado} 
-                />
-                <Text style={styles.emptyListText}>
-                  {pesquisa ? 'Nenhum perfume encontrado' : 'Nenhum perfume encontrado'}
-                </Text>
-                <Text style={styles.emptyListSubtext}>
-                  {pesquisa ? 'Tente outros termos de busca' : 'Nossa coleção está sendo atualizada'}
-                </Text>
-              </View>
+            ListHeaderComponent={
+              !modoPesquisa && !pesquisa ? CollectionHeader : null
             }
+            ListEmptyComponent={EmptyListComponent}
           />
         )}
       </Animated.View>
@@ -380,45 +467,77 @@ const styles = StyleSheet.create({
     backgroundColor: CORES.fundoCard,
     borderBottomWidth: 1,
     borderBottomColor: CORES.borda,
-    paddingVertical: 15,
+    paddingVertical: 20,
     paddingHorizontal: 20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  glowBackground: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    right: -100,
+    height: 300,
+    backgroundColor: CORES.dourado,
+    borderRadius: 150,
+    opacity: 0.3,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    zIndex: 1,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 15,
+  },
+  logoWrapper: {
+    shadowColor: CORES.dourado,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 10,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
     resizeMode: 'contain',
   },
   titleContainer: {
     flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   title: {
     color: CORES.textoPrincipal,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '300',
-    letterSpacing: 1,
+    letterSpacing: 2,
+    fontFamily: 'System',
   },
   subtitleMain: {
     color: CORES.dourado,
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    letterSpacing: 2,
-    marginTop: -4,
+    letterSpacing: 4,
+    marginTop: -6,
+    textShadowColor: CORES.dourado,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  titleUnderline: {
+    width: '100%',
+    height: 2,
+    backgroundColor: CORES.dourado,
+    marginTop: 4,
+    opacity: 0.7,
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   searchContainer: {
     overflow: 'hidden',
@@ -426,16 +545,21 @@ const styles = StyleSheet.create({
   searchInput: {
     backgroundColor: CORES.card,
     color: CORES.textoPrincipal,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 25,
     fontSize: 16,
     borderWidth: 1,
     borderColor: CORES.dourado,
+    shadowColor: CORES.dourado,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
   searchInfo: {
     backgroundColor: CORES.dourado,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 20,
   },
   searchInfoText: {
@@ -443,51 +567,104 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+    letterSpacing: 1,
   },
   iconButton: {
-    padding: 8,
-    borderRadius: 20,
+    padding: 10,
+    borderRadius: 25,
     backgroundColor: CORES.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   iconButtonActive: {
     backgroundColor: CORES.dourado,
+    shadowColor: CORES.dourado,
+    shadowOpacity: 0.5,
   },
   legacyText: {
     color: CORES.textoSecundario,
-    fontSize: 12,
-    letterSpacing: 2,
+    fontSize: 13,
+    letterSpacing: 3,
     textAlign: 'center',
-    fontFamily: 'System',
     fontWeight: '300',
+    fontStyle: 'italic',
+  },
+  heritageLine: {
+    width: 80,
+    height: 1,
+    backgroundColor: CORES.dourado,
+    alignSelf: 'center',
+    marginTop: 4,
+    opacity: 0.5,
+  },
+  collectionHeader: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  collectionTitle: {
+    color: CORES.textoPrincipal,
+    fontSize: 28,
+    fontWeight: '300',
+    letterSpacing: 3,
+    marginBottom: 8,
+  },
+  collectionSubtitle: {
+    color: CORES.textoSecundario,
+    fontSize: 16,
+    fontWeight: '300',
+    letterSpacing: 2,
+    fontStyle: 'italic',
   },
   listContent: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 40,
   },
   itemContainer: {
     backgroundColor: CORES.card,
-    borderRadius: 20,
-    marginVertical: 8,
-    padding: 16,
+    borderRadius: 24,
+    marginVertical: 10,
+    padding: 20,
     borderWidth: 1,
     borderColor: CORES.borda,
     shadowColor: CORES.dourado,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  cardGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: CORES.dourado,
+    opacity: 0.6,
   },
   itemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15,
+    gap: 18,
   },
   imageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+    width: 90,
+    height: 90,
+    borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: CORES.fundoCard,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
   perfumeImage: {
     width: '100%',
@@ -501,7 +678,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: CORES.borda,
-    borderRadius: 12,
+    borderRadius: 16,
+  },
+  luxuryBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 10,
+    padding: 4,
   },
   itemDetails: {
     flex: 1,
@@ -511,74 +696,86 @@ const styles = StyleSheet.create({
   },
   itemTextContainer: { 
     flex: 1,
-    marginRight: 10,
+    marginRight: 15,
   },
   itemName: { 
-    fontSize: 18, 
+    fontSize: 20, 
     fontWeight: '700', 
     color: CORES.textoPrincipal, 
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  itemBrand: {
-    fontSize: 14,
-    color: CORES.textoSecundario,
     marginBottom: 6,
-    fontWeight: '500',
+    letterSpacing: 0.8,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    gap: 2,
-    marginTop: 4,
+  extraInfoSpace: {
+    height: 20, // Espaço reservado para manter o layout consistente
   },
   priceContainer: {
     alignItems: 'flex-end',
-    gap: 8,
+    gap: 10,
   },
   itemPrice: { 
-    fontSize: 20, 
+    fontSize: 22, 
     fontWeight: '800', 
     color: CORES.dourado,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textShadowColor: CORES.dourado,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 5,
   },
   buyButton: {
     backgroundColor: CORES.dourado,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: CORES.dourado,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+    transform: [{ scale: 1 }],
+  },
+  buyButtonHover: {
+    transform: [{ scale: 1.1 }],
+    shadowOpacity: 0.6,
+  },
+  goldLine: {
+    position: 'absolute',
+    bottom: 0,
+    left: '25%',
+    right: '25%',
+    height: 1,
+    backgroundColor: CORES.dourado,
+    opacity: 0.3,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: 20,
   },
   loadingText: {
     color: CORES.textoSecundario,
     fontSize: 16,
+    letterSpacing: 1,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    gap: 16,
+    paddingVertical: 80,
+    gap: 20,
   },
   emptyListText: { 
     color: CORES.textoPrincipal, 
     textAlign: 'center', 
-    fontSize: 18, 
+    fontSize: 20, 
     fontWeight: '600',
+    letterSpacing: 1,
   },
   emptyListSubtext: { 
     color: CORES.textoSecundario, 
     textAlign: 'center', 
-    fontSize: 14,
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
 });
